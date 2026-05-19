@@ -16,7 +16,7 @@ export default function Home() {
       <section className="grid md:grid-cols-3 gap-6">
         <Link
           to="/agenda"
-          className="block p-6 bg-white rounded-lg border border-gray-200 hover:border-indigo-400 hover:shadow-md transition-all"
+          className="block p-6 bg-white rounded-lg border border-gray-200 hover:border-black hover:shadow-md transition-all"
         >
           <h2 className="text-2xl font-semibold text-gray-900 mb-2">Agenda</h2>
           <p className="text-gray-600">Tous les évènements à venir !</p>
@@ -24,7 +24,7 @@ export default function Home() {
 
         <Link
           to="/boiteaidee"
-          className="block p-6 bg-white rounded-lg border border-gray-200 hover:border-indigo-400 hover:shadow-md transition-all"
+          className="block p-6 bg-white rounded-lg border border-gray-200 hover:border-black hover:shadow-md transition-all"
         >
           <h2 className="text-2xl font-semibold text-gray-900 mb-2">
             Boîte à idées
@@ -34,7 +34,7 @@ export default function Home() {
 
         <Link
           to="/tutorat"
-          className="block p-6 bg-white rounded-lg border border-gray-200 hover:border-indigo-400 hover:shadow-md transition-all"
+          className="block p-6 bg-white rounded-lg border border-gray-200 hover:border-black hover:shadow-md transition-all"
         >
           <h2 className="text-2xl font-semibold text-gray-900 mb-2">Tutorat</h2>
           <p className="text-gray-600">Cours, TD, TP, et annales.</p>

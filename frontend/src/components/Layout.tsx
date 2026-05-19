@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router'
+import logo from '../assets/logo_aegp.svg'
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -9,15 +10,13 @@ export default function Layout() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <header className="bg-white border-b border-gray-200">
-        <div className="mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center">
-            <NavLink to="/">
-              <img
-                src="../../img/logo_aegp.jpg"
-                className="max-h-24 max-w-24"
-              />
-            </NavLink>
-            <NavLink to="/" className="text-xl font-bold text-black">
+            <NavLink
+              to="/"
+              className="flex items-center text-xl font-bold text-black"
+            >
+              <img src={logo} className="max-h-24 max-w-24" />
               AEGP Site officiel
             </NavLink>
           </div>
