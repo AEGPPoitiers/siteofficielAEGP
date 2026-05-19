@@ -4,6 +4,7 @@ import Home from './pages/Home'
 import Agenda from './pages/Agenda'
 import Tutorat from './pages/Tutorat'
 import Login from './pages/Login'
+import Boiteaidee from './pages/Boiteaidee'
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
         <Route path="/agenda" element={<Agenda />} />
         <Route path="/tutorat" element={<Tutorat />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/boiteaidee" element={<Boiteaidee />} />
       </Route>
     </Routes>
   )
