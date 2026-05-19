@@ -1,4 +1,3 @@
-import { Links } from 'react-router'
 import { NavLink, Outlet } from 'react-router'
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
