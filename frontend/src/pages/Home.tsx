@@ -26,6 +26,14 @@ export default function Home() {
           to="/boiteaidee"
           className="block p-6 bg-white rounded-lg border border-gray-200 hover:border-black hover:shadow-md transition-all"
         >
+          <h2 className="text-2xl font-semibold text-gray-900 mb-2">Agenda</h2>
+          <p className="text-gray-600">Tous les évènements à venir !</p>
+        </Link>
+
+        <Link
+          to="/boiteaidee"
+          className="block p-6 bg-white rounded-lg border border-gray-200 hover:border-indigo-400 hover:shadow-md transition-all"
+        >
           <h2 className="text-2xl font-semibold text-gray-900 mb-2">
             Boîte à idées
           </h2>
