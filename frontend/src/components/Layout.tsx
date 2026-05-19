@@ -1,4 +1,13 @@
-import { NavLink, Outlet } from 'react-router'
+import { NavLink, Outlet, useLocation } from 'react-router'
+import logo from '../assets/logo_aegp.svg'
+
+const pageBg: Record<string, string> = {
+  '/': 'bg-white',
+  '/agenda': 'bg-red-50',
+  '/boiteaidee': 'bg-yellow-50',
+  '/tutorat': 'bg-blue-50',
+  '/login': 'bg-white',
+}
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -6,18 +15,20 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
   }`
 
 export default function Layout() {
+  const { pathname } = useLocation()
+  const bgClass = pageBg[pathname] ?? 'bg-gray-50'
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div
+      className={`min-h-screen flex flex-col transition-colors duration-300 ${bgClass}`}
+    >
       <header className="bg-white border-b border-gray-200">
-        <div className="mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center">
-            <NavLink to="/">
-              <img
-                src="../../img/logo_aegp.jpg"
-                className="max-h-24 max-w-24"
-              />
-            </NavLink>
-            <NavLink to="/" className="text-xl font-bold text-black">
+            <NavLink
+              to="/"
+              className="flex items-center text-xl font-bold text-black"
+            >
+              <img src={logo} className="max-h-24 max-w-24" />
               AEGP Site officiel
             </NavLink>
           </div>
