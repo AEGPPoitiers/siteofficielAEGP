@@ -5,17 +5,16 @@ Site officiel de l'AEGP (Association des Étudiant.e.s en Génie Physiologique) 
 - **Frontend** : React + Vite ('frontend/')
 - **Backend** : Python + FastAPI ('backend/')
 - **BDD / Auth** : Supabase (PostgreSQL)
-- **Stockage docs** : Cloudflare R2
+- **Stockage docs** : Blackblaze B2
 - **Hébergement** : Vercel(front) + Render(back)
 
 ## Structure du repo
 
-
+'''
   ├── frontend/    # React + Vite
-
   ├── backend/     # FastAPI
-  
   └── docs/        # specs, schémas, guide d'installation
+'''
 
 ## Démarrage
 
@@ -39,4 +38,3 @@ Développeurs :
 - Marc Bonnin (Promo 2028)
 
 Contributeur.euse.s :
-test
