@@ -1,7 +1,9 @@
-import { NavLink, Outlet, useLocation } from 'react-router'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { useState, useEffect } from 'react'
-import { Menu, X } from 'lucide-react'
+import { Menu, X, LogOut } from 'lucide-react'
 import logo from '../assets/logo_aegp.svg'
+import { useAuth } from '../contexts/AuthContext'
+import UserMenu from './UserMenu'
 
 const pageBg: Record<string, string> = {
   '/': 'bg-white',
@@ -21,11 +23,22 @@ const mobileLinkClass = (props: { isActive: boolean }) =>
 
 export default function Layout() {
   const [isOpen, setIsOpen] = useState(false)
+
   const { pathname } = useLocation()
   useEffect(() => {
     setIsOpen(false)
   }, [pathname])
-  const bgClass = pageBg[pathname] ?? 'bg-gray-50'
+
+  const bgClass = pageBg[pathname] ?? 'bg-white'
+
+  const { user, signOut } = useAuth()
+  const navigate = useNavigate()
+
+  async function handleSignout() {
+    await signOut()
+    navigate('/login')
+  }
+
   return (
     <div
       className={`min-h-screen flex flex-col transition-colors duration-300 ${bgClass}`}
@@ -54,9 +67,13 @@ export default function Layout() {
             <NavLink to="/tutorat" className={linkClass}>
               Tutorat
             </NavLink>
-            <NavLink to="/login" className={linkClass}>
-              Connexion
-            </NavLink>
+            {user ? (
+              <UserMenu />
+            ) : (
+              <NavLink to="/login" className={linkClass}>
+                Connexion
+              </NavLink>
+            )}
           </nav>
           <button
             type="button"
@@ -86,9 +103,24 @@ export default function Layout() {
             <NavLink to="/tutorat" className={mobileLinkClass}>
               Tutorat
             </NavLink>
-            <NavLink to="/login" className={mobileLinkClass}>
-              Connexion
-            </NavLink>
+            {user ? (
+              <>
+                <div className="px-3 pt-3 pb-1 text-xs text-gray-500 border-t border-gray-200 mt-1 truncate">
+                  {user.email}
+                </div>
+                <button
+                  onClick={handleSignout}
+                  className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  <LogOut size={16} />
+                  Déconnexion
+                </button>
+              </>
+            ) : (
+              <NavLink to="/login" className={mobileLinkClass}>
+                Connexion
+              </NavLink>
+            )}
           </nav>
         )}
       </header>

@@ -1,67 +1,64 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate, Link } from 'react-router'
 import { useAuth } from '../contexts/AuthContext'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { FieldError } from '../components/ui/FieldError'
 import { FormCard } from '../components/ui/FormCard'
 
-export default function Login() {
-  const { signIn } = useAuth()
-  const navigate = useNavigate()
+export default function ResetPassword() {
+  const { requestPasswordReset } = useAuth()
 
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [sent, setSent] = useState(false)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    setSubmitting(true)
     setErrorMessage(null)
+    setSubmitting(true)
 
-    const { error } = await signIn(email, password)
+    const { error } = await requestPasswordReset(email)
 
     if (error) {
-      setErrorMessage('Email ou mot de passe invalide')
+      setErrorMessage('Une erreur est survenue. Veuillez réessayer plus tard.')
     } else {
-      navigate('/')
+      setSent(true)
     }
 
     setSubmitting(false)
   }
 
+  if (sent) {
+    return (
+      <FormCard title="Email envoyé">
+        <p className="text-sm text-gray-700">
+          Si un compte existe pour <strong>{email}</strong>, vous allez recevoir
+          un email avec un lien pour réinitialiser votre mot de passe.
+        </p>
+      </FormCard>
+    )
+  }
+
   return (
-    <FormCard title="Connexion">
+    <FormCard
+      title="Mot de passe oublié"
+      subtitle="Saisis ton email, on t'envoie un lien pour le réinitialiser."
+    >
       <form onSubmit={handleSubmit}>
         <Input
           id="email"
-          label="Email"
+          label="Adresse email"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           autoComplete="email"
           required
         />
-        <Input
-          id="password"
-          label="Mot de passe"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="current-password"
-          required
-        />
         <FieldError>{errorMessage}</FieldError>
         <Button type="submit" loading={submitting} className="w-full">
-          {submitting ? 'Connexion...' : 'Se connecter'}
+          {submitting ? 'Envoi...' : 'Envoyer le lien de réinitialisation'}
         </Button>
-        <Link
-          to="/reset-password"
-          className="block mt-4 text-sm text-gray-600 hover:text-black text-center"
-        >
-          Mot de passe oublié ?
-        </Link>
       </form>
     </FormCard>
   )
