@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { supabase } from '../lib/supabase'
+import { removeEventImage } from '../lib/eventImage'
 import { useIsBdeMember } from '../lib/useIsBdeMember'
 
 type Event = {
@@ -57,11 +58,18 @@ export default function EventDetail() {
     setDeleting(true)
     setDeleteError(null)
     const { error } = await supabase.from('events').delete().eq('id', event.id)
-    setDeleting(false)
 
     if (error) {
+      setDeleting(false)
       setDeleteError(`Impossible de supprimer : ${error.message}`)
       return
+    }
+
+    if (event.image_url) {
+      const { error: removeError } = await removeEventImage(event.image_url)
+      if (removeError) {
+        console.warn('[event-images] suppression échouée :', removeError)
+      }
     }
 
     navigate('/agenda')

@@ -1,7 +1,11 @@
 import { useNavigate, useSearchParams, Link } from 'react-router'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
-import { EventForm, type EventFormValues } from '../components/EventForm'
+import { uploadEventImage } from '../lib/eventImage'
+import {
+  EventForm,
+  type EventFormSubmitPayload,
+} from '../components/EventForm'
 
 export default function EventNew() {
   const navigate = useNavigate()
@@ -11,7 +15,7 @@ export default function EventNew() {
 
   const initialValues = dateParam ? { start_date: dateParam } : undefined
 
-  async function handleSubmit(values: EventFormValues) {
+  async function handleSubmit({ values, imageFile }: EventFormSubmitPayload) {
     if (!user) return { error: 'Vous devez être connecté.' }
 
     const payload = {
@@ -23,19 +27,34 @@ export default function EventNew() {
       created_by: user.id,
     }
 
-    const { data, error } = await supabase
+    const { data: inserted, error: insertError } = await supabase
       .from('events')
       .insert(payload)
       .select('id')
       .single()
 
-    if (error || !data) {
+    if (insertError || !inserted) {
       return {
-        error: `Impossible de créer l'événement : ${error?.message ?? 'erreur inconnue'}`,
+        error: `Impossible de créer l'événement : ${insertError?.message ?? 'erreur inconnue'}`,
       }
     }
 
-    navigate(`/agenda/${data.id}`)
+    if (imageFile) {
+      const { url, error: uploadError } = await uploadEventImage(imageFile)
+      if (uploadError) {
+        return {
+          error: `Événement créé mais l'image n'a pas pu être uploadée : ${uploadError}. Tu peux retenter via l'édition.`,
+        }
+      }
+      if (url) {
+        await supabase
+          .from('events')
+          .update({ image_url: url })
+          .eq('id', inserted.id)
+      }
+    }
+
+    navigate(`/agenda/${inserted.id}`)
     return {}
   }
 
