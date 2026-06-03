@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router'
+import { useParams, Link, useNavigate } from 'react-router'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { supabase } from '../lib/supabase'
+import { useIsBdeMember } from '../lib/useIsBdeMember'
 
 type Event = {
   id: string
@@ -16,9 +17,13 @@ type Event = {
 
 export default function EventDetail() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const { isBde } = useIsBdeMember()
   const [event, setEvent] = useState<Event | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -41,6 +46,26 @@ export default function EventDetail() {
       cancelled = true
     }
   }, [id])
+
+  async function handleDelete() {
+    if (!event) return
+    const ok = window.confirm(
+      `Supprimer « ${event.title} » ? Cette action est irréversible.`,
+    )
+    if (!ok) return
+
+    setDeleting(true)
+    setDeleteError(null)
+    const { error } = await supabase.from('events').delete().eq('id', event.id)
+    setDeleting(false)
+
+    if (error) {
+      setDeleteError(`Impossible de supprimer : ${error.message}`)
+      return
+    }
+
+    navigate('/agenda')
+  }
 
   if (loading) {
     return <div className="text-center py-12 text-gray-500">Chargement…</div>
@@ -79,11 +104,7 @@ export default function EventDetail() {
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-6">
         {event.image_url && (
-          <img
-            src={event.image_url}
-            alt=""
-            className="w-full rounded-lg"
-          />
+          <img src={event.image_url} alt="" className="w-full rounded-lg" />
         )}
 
         <div>
@@ -112,6 +133,32 @@ export default function EventDetail() {
             >
               Plus d'informations
             </a>
+          </div>
+        )}
+
+        {isBde && (
+          <div className="pt-4 border-t border-gray-200 space-y-3">
+            {deleteError && (
+              <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+                {deleteError}
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <Link
+                to={`/agenda/${event.id}/edit`}
+                className="inline-block bg-white border border-gray-300 text-black px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50"
+              >
+                Modifier
+              </Link>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="inline-block bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleting ? 'Suppression…' : 'Supprimer'}
+              </button>
+            </div>
           </div>
         )}
       </div>

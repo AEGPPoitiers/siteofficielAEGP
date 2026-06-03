@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, Link } from 'react-router'
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar'
 import { format, parse, startOfWeek, getDay } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { supabase } from '../lib/supabase'
+import { useIsBdeMember } from '../lib/useIsBdeMember'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 
 const locales = { fr: fr }
@@ -47,6 +48,7 @@ const messages = {
 
 export default function Agenda() {
   const navigate = useNavigate()
+  const { isBde } = useIsBdeMember()
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -87,18 +89,32 @@ export default function Agenda() {
     [navigate],
   )
 
-  const handleSelectSlot = useCallback(() => {
-    // Hook préparé pour le chantier C : ouvrira la création d'événement
-    // pré-remplie avec la date sélectionnée si l'utilisateur est BDE.
-  }, [])
+  const handleSelectSlot = useCallback(
+    (slotInfo: { start: Date }) => {
+      if (!isBde) return
+      const dateIso = slotInfo.start.toISOString()
+      navigate(`/agenda/new?date=${encodeURIComponent(dateIso)}`)
+    },
+    [isBde, navigate],
+  )
 
   return (
     <div className="space-y-4 max-w-5xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Agenda</h1>
-        <p className="text-gray-600 mt-1">
-          Les événements du BDE, passés et à venir.
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Agenda</h1>
+          <p className="text-gray-600 mt-1">
+            Les événements du BDE, passés et à venir.
+          </p>
+        </div>
+        {isBde && (
+          <Link
+            to="/agenda/new"
+            className="inline-block bg-black text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-800"
+          >
+            + Nouvel événement
+          </Link>
+        )}
       </div>
 
       {error && (
