@@ -1,16 +1,15 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Menu, X, LogOut } from 'lucide-react'
 import logo from '../assets/logo_aegp.svg'
 import { useAuth } from '../contexts/AuthContext'
 import UserMenu from './UserMenu'
 
-const pageBg: Record<string, string> = {
-  '/': 'bg-white',
-  '/agenda': 'bg-red-50',
-  '/boiteaidee': 'bg-yellow-50',
-  '/tutorat': 'bg-blue-50',
-  '/login': 'bg-white',
+function getBgClass(pathname: string): string {
+  if (pathname.startsWith('/agenda')) return 'bg-red-50'
+  if (pathname.startsWith('/boiteaidee')) return 'bg-yellow-50'
+  if (pathname.startsWith('/tutorat')) return 'bg-blue-50'
+  return 'bg-white'
 }
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
@@ -23,13 +22,14 @@ const mobileLinkClass = (props: { isActive: boolean }) =>
 
 export default function Layout() {
   const [isOpen, setIsOpen] = useState(false)
-
   const { pathname } = useLocation()
-  useEffect(() => {
+  const [prevPathname, setPrevPathname] = useState(pathname)
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname)
     setIsOpen(false)
-  }, [pathname])
+  }
 
-  const bgClass = pageBg[pathname] ?? 'bg-white'
+  const bgClass = getBgClass(pathname)
 
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
