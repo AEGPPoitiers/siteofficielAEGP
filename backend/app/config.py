@@ -14,7 +14,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     # Auth Supabase
-    supabase_jwt_secret: str
+    # Les access tokens récents sont signés en ES256 (clés asymétriques) et
+    # vérifiés via le JWKS dérivé de `supabase_url`. Le secret HS256 legacy n'est
+    # plus indispensable : conservé en option pour d'anciens tokens / le local.
+    supabase_jwt_secret: str | None = None
     supabase_url: str
     supabase_service_role_key: str
 
