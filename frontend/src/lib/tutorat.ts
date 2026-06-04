@@ -11,6 +11,19 @@ export type TutoratNode = {
   created_at: string
 }
 
+/**
+ * Types de sous-dossiers autorisés selon le parent (profondeur variable L3 vs
+ * M1/M2). Une matière est une feuille : elle ne peut pas contenir de sous-dossier
+ * (mais peut contenir des fichiers). Utilisé côté UI pour décider si on propose
+ * la création d'un dossier à un niveau donné.
+ */
+export function allowedChildKinds(parent: TutoratNode | null): NodeKind[] {
+  if (parent === null) return ['promo']
+  if (parent.kind === 'promo') return ['option', 'matiere']
+  if (parent.kind === 'option') return ['matiere']
+  return []
+}
+
 export type DocType = 'cm' | 'td' | 'tp' | 'examen'
 
 export type TutoratDocument = {

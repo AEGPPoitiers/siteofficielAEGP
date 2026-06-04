@@ -45,7 +45,6 @@ export default function TutoratBrowse() {
   }, [])
 
   const current = path[path.length - 1] ?? null
-  const inMatiere = current?.kind === 'matiere'
   const children = nodes
     .filter((n) => (n.parent_id ?? null) === (current?.id ?? null))
     .sort((a, b) => a.position - b.position)
@@ -73,11 +72,23 @@ export default function TutoratBrowse() {
 
       {loadingNodes ? (
         <div className="text-center py-12 text-gray-500">Chargement…</div>
-      ) : inMatiere && current ? (
-        // key = remonte le composant (et réinitialise son état) à chaque matière
-        <DocumentList key={current.id} matiere={current} onError={setError} />
+      ) : children.length === 0 && !current ? (
+        <div className="text-center py-12 text-gray-500">
+          Rien à afficher pour l'instant.
+        </div>
       ) : (
-        <NodeGrid nodes={children} onEnter={enter} />
+        <div className="space-y-8">
+          {children.length > 0 && <NodeGrid nodes={children} onEnter={enter} />}
+          {current && (
+            // key = remonte le composant (et réinitialise son état) à chaque dossier
+            <DocumentList
+              key={current.id}
+              node={current}
+              hasFolders={children.length > 0}
+              onError={setError}
+            />
+          )}
+        </div>
       )}
     </div>
   )
@@ -132,14 +143,17 @@ function NodeGrid({
 // ----------------------------------------------------------------------------
 
 function DocumentList({
-  matiere,
+  node,
+  hasFolders,
   onError,
 }: {
-  matiere: TutoratNode
+  node: TutoratNode
+  /** Le dossier courant contient aussi des sous-dossiers (affichés au-dessus). */
+  hasFolders: boolean
   onError: (msg: string) => void
 }) {
-  // État initial = celui d'une matière fraîchement ouverte. Le composant est
-  // remonté (key=matiere.id par le parent) à chaque changement de matière,
+  // État initial = celui d'un dossier fraîchement ouvert. Le composant est
+  // remonté (key=node.id par le parent) à chaque changement de dossier,
   // donc pas besoin de réinitialiser manuellement.
   const [documents, setDocuments] = useState<TutoratDocument[]>([])
   const [loading, setLoading] = useState(true)
@@ -151,7 +165,7 @@ function DocumentList({
     supabase
       .from('tutorat_documents')
       .select('*')
-      .eq('node_id', matiere.id)
+      .eq('node_id', node.id)
       .order('created_at', { ascending: false })
       .then(({ data, error: fetchError }) => {
         if (cancelled) return
@@ -165,7 +179,7 @@ function DocumentList({
     return () => {
       cancelled = true
     }
-  }, [matiere.id, onError])
+  }, [node.id, onError])
 
   const filtered = documents
     .filter((d) => typeFilter === 'all' || d.doc_type === typeFilter)
@@ -176,19 +190,29 @@ function DocumentList({
     )
 
   if (loading) {
-    return <div className="text-center py-12 text-gray-500">Chargement…</div>
+    // Pas de gros spinner si des dossiers sont déjà affichés au-dessus.
+    return hasFolders ? null : (
+      <div className="text-center py-12 text-gray-500">Chargement…</div>
+    )
   }
 
   if (documents.length === 0) {
+    // Dossier avec des sous-dossiers mais sans fichier : rien à signaler.
+    if (hasFolders) return null
     return (
       <div className="text-center py-12 text-gray-500">
-        Aucun document dans « {matiere.name} » pour l'instant.
+        Aucun document dans « {node.name} » pour l'instant.
       </div>
     )
   }
 
   return (
     <div className="space-y-4">
+      {hasFolders && (
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+          Documents
+        </h2>
+      )}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search
