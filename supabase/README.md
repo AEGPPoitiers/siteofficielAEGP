@@ -31,6 +31,7 @@ Les migrations doivent être appliquées **dans l'ordre numérique**, car certai
 | `0001_profiles.sql` | Table `profiles` + trigger `on_auth_user_created` + RLS | — |
 | `0002_ideas.sql` | Type `idea_status` + table `ideas` + 3 policies RLS | `0001_profiles.sql` (RLS référence `profiles`) |
 | `0003_events.sql` | Table `events` + 4 policies RLS (SELECT public, écriture BDE) + bucket Storage `event-images` + policies storage | `0001_profiles.sql` (RLS référence `profiles`) |
+| `0004_tutorat.sql` | Tables `tutorat_nodes` (taxonomie arbre) + `tutorat_documents` + 8 policies RLS (SELECT authentifié, écriture BDE) + seed squelette taxonomie | `0001_profiles.sql` (RLS référence `profiles`) |
 
 ## Après application de `0001_profiles.sql`
 
