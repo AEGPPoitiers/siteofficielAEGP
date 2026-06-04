@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import type { TutoratNode, TutoratDocument } from '../lib/tutorat'
+import {
+  allowedChildKinds,
+  type TutoratNode,
+  type TutoratDocument,
+} from '../lib/tutorat'
 import { deleteObject } from '../lib/tutoratFiles'
 import { FieldError } from '../components/ui/FieldError'
 import { Button } from '../components/ui/Button'
@@ -43,10 +47,13 @@ export default function TutoratAdmin() {
   }, [treeToken])
 
   const current = path[path.length - 1] ?? null
-  const inMatiere = current?.kind === 'matiere'
   const children = nodes
     .filter((n) => (n.parent_id ?? null) === (current?.id ?? null))
     .sort((a, b) => a.position - b.position)
+  // On peut créer un sous-dossier ici tant que la taxonomie l'autorise (une
+  // matière est une feuille : pas de sous-dossier, mais des fichiers possibles).
+  const canAddFolder = allowedChildKinds(current).length > 0
+  const showFolders = children.length > 0 || canAddFolder
 
   // NodeManager ne mute que les enfants du niveau courant (jamais un ancêtre du
   // chemin), donc un simple rechargement de l'arbre suffit.
@@ -72,16 +79,32 @@ export default function TutoratAdmin() {
 
       {loadingNodes ? (
         <div className="text-center py-12 text-gray-500">Chargement…</div>
-      ) : inMatiere && current ? (
-        <DocumentManager key={current.id} matiere={current} onError={setError} />
       ) : (
-        <NodeManager
-          key={current?.id ?? 'root'}
-          parent={current}
-          nodes={children}
-          onEnter={(node) => setPath((p) => [...p, node])}
-          onChanged={reloadTree}
-        />
+        <div className="space-y-8">
+          {showFolders && (
+            <section className="space-y-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+                Dossiers
+              </h2>
+              <NodeManager
+                key={current?.id ?? 'root'}
+                parent={current}
+                nodes={children}
+                onEnter={(node) => setPath((p) => [...p, node])}
+                onChanged={reloadTree}
+              />
+            </section>
+          )}
+
+          {current && (
+            <section className="space-y-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+                Documents
+              </h2>
+              <DocumentManager key={current.id} node={current} onError={setError} />
+            </section>
+          )}
+        </div>
       )}
     </div>
   )
@@ -92,10 +115,10 @@ export default function TutoratAdmin() {
 // ----------------------------------------------------------------------------
 
 function DocumentManager({
-  matiere,
+  node,
   onError,
 }: {
-  matiere: TutoratNode
+  node: TutoratNode
   onError: (msg: string) => void
 }) {
   const [documents, setDocuments] = useState<TutoratDocument[]>([])
@@ -109,7 +132,7 @@ function DocumentManager({
     supabase
       .from('tutorat_documents')
       .select('*')
-      .eq('node_id', matiere.id)
+      .eq('node_id', node.id)
       .order('created_at', { ascending: false })
       .then(({ data, error: fetchError }) => {
         if (cancelled) return
@@ -123,7 +146,7 @@ function DocumentManager({
     return () => {
       cancelled = true
     }
-  }, [matiere.id, token, onError])
+  }, [node.id, token, onError])
 
   function reload() {
     setToken((t) => t + 1)
@@ -159,7 +182,7 @@ function DocumentManager({
     <div className="space-y-4">
       {formFor ? (
         <DocumentForm
-          matiere={matiere}
+          node={node}
           existing={formFor === 'new' ? null : formFor}
           onDone={() => {
             setFormFor(null)
@@ -171,14 +194,14 @@ function DocumentManager({
         <Button type="button" variant="primary" onClick={() => setFormFor('new')}>
           <span className="inline-flex items-center gap-1.5">
             <Plus size={16} aria-hidden />
-            Ajouter un document
+            Ajouter un fichier
           </span>
         </Button>
       )}
 
       {documents.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
-          Aucun document dans « {matiere.name} ».
+        <div className="text-sm text-gray-500 py-2">
+          Aucun fichier dans « {node.name} ».
         </div>
       ) : (
         <div className="space-y-3">

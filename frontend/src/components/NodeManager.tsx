@@ -3,20 +3,16 @@ import { ChevronRight, Folder, Pencil, Trash2, Plus, Check, X } from 'lucide-rea
 import { supabase } from '../lib/supabase'
 import { Button } from './ui/Button'
 import { FieldError } from './ui/FieldError'
-import type { NodeKind, TutoratNode } from '../lib/tutorat'
+import {
+  allowedChildKinds,
+  type NodeKind,
+  type TutoratNode,
+} from '../lib/tutorat'
 
 const KIND_LABELS: Record<NodeKind, string> = {
   promo: 'Promo',
   option: 'Option',
   matiere: 'Matière',
-}
-
-/** Types d'enfants autorisés selon le parent (profondeur variable L3 vs M1/M2). */
-function allowedChildKinds(parent: TutoratNode | null): NodeKind[] {
-  if (parent === null) return ['promo']
-  if (parent.kind === 'promo') return ['option', 'matiere']
-  if (parent.kind === 'option') return ['matiere']
-  return []
 }
 
 type Props = {
@@ -223,7 +219,7 @@ export function NodeManager({ parent, nodes, onEnter, onChanged }: Props) {
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleAdd()
             }}
-            placeholder="Nom à ajouter…"
+            placeholder="Nom du dossier…"
             disabled={busy}
             className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-black bg-white"
             aria-label="Nom du nouvel élément"

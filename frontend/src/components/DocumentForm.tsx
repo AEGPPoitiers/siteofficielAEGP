@@ -19,7 +19,8 @@ const DESCRIPTION_MAX = 5000
 const FILE_MAX_BYTES = 50 * 1024 * 1024 // 50 Mo
 
 type Props = {
-  matiere: TutoratNode
+  /** Dossier (node) auquel rattacher le document. */
+  node: TutoratNode
   /** Document à modifier (sinon création). */
   existing?: TutoratDocument | null
   onDone: () => void
@@ -31,7 +32,7 @@ type Props = {
  * À l'ajout, le fichier est obligatoire. À la modification, le fichier est
  * optionnel : sans nouveau fichier, seules les métadonnées changent.
  */
-export function DocumentForm({ matiere, existing, onDone, onCancel }: Props) {
+export function DocumentForm({ node, existing, onDone, onCancel }: Props) {
   const { user } = useAuth()
   const isEdit = !!existing
 
@@ -59,7 +60,7 @@ export function DocumentForm({ matiere, existing, onDone, onCancel }: Props) {
   async function uploadFile(f: File) {
     const contentType = f.type || 'application/octet-stream'
     const { upload_url, file_key } = await presignUpload({
-      node_id: matiere.id,
+      node_id: node.id,
       file_name: f.name,
       content_type: contentType,
     })
@@ -108,7 +109,7 @@ export function DocumentForm({ matiere, existing, onDone, onCancel }: Props) {
         const fileFields = await uploadFile(file as File)
         const { error: insertError } = await supabase
           .from('tutorat_documents')
-          .insert({ node_id: matiere.id, ...meta, ...fileFields, uploaded_by: user.id })
+          .insert({ node_id: node.id, ...meta, ...fileFields, uploaded_by: user.id })
         if (insertError) {
           await deleteObject(fileFields.file_key).catch(() => {})
           throw new Error(insertError.message)
