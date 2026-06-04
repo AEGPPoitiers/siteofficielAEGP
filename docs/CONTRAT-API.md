@@ -182,7 +182,7 @@ Pour les erreurs de validation (400), FastAPI renvoie un format plus riche :
 
 ## 5. CORS
 
-Le front est servi depuis `https://siteaegp.vercel.app` en prod et `http://localhost:5173` en dev. Le back doit autoriser ces origines :
+Le front est servi depuis `https://siteofficiel-aegp.vercel.app` en prod et `http://localhost:5173` en dev. Le back doit autoriser ces origines :
 
 ```python
 from fastapi.middleware.cors import CORSMiddleware
@@ -191,16 +191,16 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
-        "https://siteaegp.vercel.app",
+        "https://siteofficiel-aegp.vercel.app",
     ],
-    allow_origin_regex=r"https://siteaegp-.*\.vercel\.app",  # preview deploys
+    allow_origin_regex=r"https://siteofficiel-aegp-.*\.vercel\.app",  # preview deploys
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 ```
 
-> **Note preview deploys Vercel** : chaque PR génère une URL de la forme `https://siteaegp-<hash>-<team>.vercel.app`. Le `allow_origin_regex` ci-dessus les autorise toutes.
+> **Note preview deploys Vercel** : chaque PR génère une URL de la forme `https://siteofficiel-aegp-<hash>-<team>.vercel.app`. Le `allow_origin_regex` ci-dessus les autorise toutes.
 
 ---
 

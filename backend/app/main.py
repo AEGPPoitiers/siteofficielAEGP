@@ -15,9 +15,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
-        "https://siteaegp.vercel.app",
+        "https://siteofficiel-aegp.vercel.app",
     ],
-    allow_origin_regex=r"https://siteaegp-.*\.vercel\.app",  # preview deploys
+    allow_origin_regex=r"https://siteofficiel-aegp-.*\.vercel\.app",  # preview deploys
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
