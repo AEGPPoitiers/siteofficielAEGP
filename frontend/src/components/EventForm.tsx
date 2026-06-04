@@ -1,4 +1,11 @@
-import { useState, type FormEvent } from 'react'
+import {
+  useState,
+  useRef,
+  useEffect,
+  useMemo,
+  type FormEvent,
+  type ChangeEvent,
+} from 'react'
 import { format } from 'date-fns'
 import { Button } from './ui/Button'
 import { Input } from './ui/Input'
@@ -13,14 +20,22 @@ export type EventFormValues = {
   external_link: string
 }
 
+export type EventFormSubmitPayload = {
+  values: EventFormValues
+  imageFile: File | null
+  removeImage: boolean
+}
+
 type EventFormProps = {
   initialValues?: Partial<EventFormValues>
-  onSubmit: (values: EventFormValues) => Promise<{ error?: string }>
+  currentImageUrl?: string | null
+  onSubmit: (payload: EventFormSubmitPayload) => Promise<{ error?: string }>
   submitLabel: string
 }
 
 const TITLE_MAX = 200
 const DESCRIPTION_MAX = 5000
+const IMAGE_MAX_BYTES = 5 * 1024 * 1024
 
 const HOURS = Array.from({ length: 24 }, (_, i) =>
   i.toString().padStart(2, '0'),
@@ -66,6 +81,7 @@ function dateTimeInputsToIso(
 
 export function EventForm({
   initialValues = {},
+  currentImageUrl = null,
   onSubmit,
   submitLabel,
 }: EventFormProps) {
@@ -86,8 +102,50 @@ export function EventForm({
   const [externalLink, setExternalLink] = useState(
     initialValues.external_link ?? '',
   )
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [removeImage, setRemoveImage] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const objectUrl = useMemo(
+    () => (imageFile ? URL.createObjectURL(imageFile) : null),
+    [imageFile],
+  )
+
+  useEffect(() => {
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [objectUrl])
+
+  const displayedImageUrl =
+    objectUrl ?? (!removeImage ? currentImageUrl : null)
+
+  function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      setError('Le fichier doit être une image.')
+      return
+    }
+    if (file.size > IMAGE_MAX_BYTES) {
+      setError('L’image ne doit pas dépasser 5 Mo.')
+      return
+    }
+
+    setError(null)
+    setImageFile(file)
+    setRemoveImage(false)
+  }
+
+  function handleRemoveImage() {
+    setImageFile(null)
+    setRemoveImage(true)
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -123,11 +181,15 @@ export function EventForm({
 
     setSubmitting(true)
     const result = await onSubmit({
-      title: t,
-      description: d,
-      start_date: dateTimeInputsToIso(dateValue, hourValue, minuteValue),
-      location: loc,
-      external_link: ext,
+      values: {
+        title: t,
+        description: d,
+        start_date: dateTimeInputsToIso(dateValue, hourValue, minuteValue),
+        location: loc,
+        external_link: ext,
+      },
+      imageFile,
+      removeImage,
     })
     setSubmitting(false)
 
@@ -212,6 +274,60 @@ export function EventForm({
             </select>
           </div>
         </div>
+      </div>
+
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Image (optionnel)
+        </label>
+        <p className="text-xs text-gray-500 mb-2">
+          Format image, 5 Mo max. Ratio paysage recommandé.
+        </p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileChange}
+          disabled={submitting}
+          className="hidden"
+          aria-hidden="true"
+        />
+        {displayedImageUrl ? (
+          <div className="space-y-2">
+            <img
+              src={displayedImageUrl}
+              alt=""
+              className="w-full max-h-64 object-cover rounded-md border border-gray-200"
+            />
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={submitting}
+              >
+                Changer l'image
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleRemoveImage}
+                disabled={submitting}
+              >
+                Supprimer l'image
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={submitting}
+          >
+            Ajouter une image
+          </Button>
+        )}
       </div>
 
       <Input

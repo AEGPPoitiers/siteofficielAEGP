@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router'
 import { supabase } from '../lib/supabase'
-import { EventForm, type EventFormValues } from '../components/EventForm'
+import { uploadEventImage, removeEventImage } from '../lib/eventImage'
+import {
+  EventForm,
+  type EventFormValues,
+  type EventFormSubmitPayload,
+} from '../components/EventForm'
 
 type EventRow = {
   title: string
@@ -9,6 +14,7 @@ type EventRow = {
   start_date: string
   location: string | null
   external_link: string | null
+  image_url: string | null
 }
 
 export default function EventEdit() {
@@ -17,6 +23,7 @@ export default function EventEdit() {
   const [initialValues, setInitialValues] = useState<EventFormValues | null>(
     null,
   )
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
 
@@ -25,7 +32,9 @@ export default function EventEdit() {
     let cancelled = false
     supabase
       .from('events')
-      .select('title, description, start_date, location, external_link')
+      .select(
+        'title, description, start_date, location, external_link, image_url',
+      )
       .eq('id', id)
       .single()
       .then(({ data, error }) => {
@@ -41,6 +50,7 @@ export default function EventEdit() {
             location: row.location ?? '',
             external_link: row.external_link ?? '',
           })
+          setCurrentImageUrl(row.image_url)
         }
         setLoading(false)
       })
@@ -49,21 +59,55 @@ export default function EventEdit() {
     }
   }, [id])
 
-  async function handleSubmit(values: EventFormValues) {
+  async function handleSubmit({
+    values,
+    imageFile,
+    removeImage,
+  }: EventFormSubmitPayload) {
     if (!id) return { error: 'ID manquant.' }
 
-    const payload = {
+    let newImageUrl: string | null | undefined = undefined
+    let oldImageToDelete: string | null = null
+
+    if (removeImage) {
+      newImageUrl = null
+      if (currentImageUrl) oldImageToDelete = currentImageUrl
+    } else if (imageFile) {
+      const { url, error: uploadError } = await uploadEventImage(imageFile)
+      if (uploadError || !url) {
+        return {
+          error: `Impossible d'uploader l'image : ${uploadError ?? 'erreur inconnue'}`,
+        }
+      }
+      newImageUrl = url
+      if (currentImageUrl) oldImageToDelete = currentImageUrl
+    }
+
+    const payload: Record<string, unknown> = {
       title: values.title,
       description: values.description || null,
       start_date: values.start_date,
       location: values.location || null,
       external_link: values.external_link || null,
     }
+    if (newImageUrl !== undefined) {
+      payload.image_url = newImageUrl
+    }
 
-    const { error } = await supabase.from('events').update(payload).eq('id', id)
+    const { error: updateError } = await supabase
+      .from('events')
+      .update(payload)
+      .eq('id', id)
 
-    if (error) {
-      return { error: `Impossible de modifier l'événement : ${error.message}` }
+    if (updateError) {
+      return { error: `Impossible de modifier l'événement : ${updateError.message}` }
+    }
+
+    if (oldImageToDelete) {
+      const { error: removeError } = await removeEventImage(oldImageToDelete)
+      if (removeError) {
+        console.warn('[event-images] suppression échouée :', removeError)
+      }
     }
 
     navigate(`/agenda/${id}`)
@@ -105,6 +149,7 @@ export default function EventEdit() {
         </p>
         <EventForm
           initialValues={initialValues}
+          currentImageUrl={currentImageUrl}
           onSubmit={handleSubmit}
           submitLabel="Enregistrer les modifications"
         />
