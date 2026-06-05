@@ -31,7 +31,7 @@ export function DocumentCard({ doc, admin }: Props) {
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
 
-  const dateLabel = format(new Date(doc.created_at), 'd MMM yyyy', {
+  const dateLabel = format(new Date(doc.created_at), 'dd/MM/yyyy', {
     locale: fr,
   })
   const sizeLabel = formatFileSize(doc.file_size)

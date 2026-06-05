@@ -1,9 +1,6 @@
 import { Link } from 'react-router'
-import { useAuth } from '../contexts/AuthContext'
 
 export default function Home() {
-  const { user, loading, session } = useAuth()
-  console.log({ user, loading, session })
   return (
     <div className="space-y-8">
       <section className="text-center py-12">

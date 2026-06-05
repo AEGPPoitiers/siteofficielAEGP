@@ -89,7 +89,7 @@ export function BoiteaideeSubmit() {
   return (
     <FormCard
       title="Boîte à idées"
-      subtitle="Proposez un événement, une amélioration, ou toute idée pour le BDE."
+      subtitle="Proposez un événement, une amélioration, ou toute idée pour l'AEGP."
     >
       <form onSubmit={handleSubmit} noValidate>
         <FieldError>{error}</FieldError>

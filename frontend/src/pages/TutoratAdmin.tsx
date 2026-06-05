@@ -65,9 +65,6 @@ export default function TutoratAdmin() {
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Tutorat — gestion</h1>
-        <p className="text-gray-600 mt-1">
-          Organise la taxonomie et gère les documents (réservé au BDE).
-        </p>
       </div>
 
       {error && <FieldError>{error}</FieldError>}
