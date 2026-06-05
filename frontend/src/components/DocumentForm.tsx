@@ -125,7 +125,9 @@ export function DocumentForm({ node, existing, onDone, onCancel }: Props) {
           await deleteObject(fileFields.file_key).catch(() => {})
           throw new Error(updateError.message)
         }
-        await deleteObject(existing!.file_key).catch(() => {})
+        // Suppression de l'ancien objet en arrière-plan (best-effort) : ne bloque
+        // pas la fermeture du formulaire sur cet appel Render.
+        void deleteObject(existing!.file_key).catch(() => {})
       } else {
         // Modification des métadonnées seules.
         const { error: updateError } = await supabase
