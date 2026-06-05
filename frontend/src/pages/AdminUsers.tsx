@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Search, Shield } from 'lucide-react'
+import { Search, Shield, Trash2 } from 'lucide-react'
 import {
   listUsers,
   updateUserRoles,
+  deleteUser,
   type AdminUser,
   type EditableRoles,
 } from '../lib/adminUsers'
@@ -14,6 +15,7 @@ export default function AdminUsers() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -82,6 +84,29 @@ export default function AdminUsers() {
     }
   }
 
+  async function handleDelete(user: AdminUser) {
+    const label = user.full_name || user.email || 'ce compte'
+    if (
+      !window.confirm(
+        `Supprimer définitivement le compte « ${label} » ? Cette action est irréversible.`,
+      )
+    ) {
+      return
+    }
+    setActionError(null)
+    setDeletingId(user.id)
+    try {
+      await deleteUser(user.id)
+      setUsers((prev) => prev.filter((u) => u.id !== user.id))
+    } catch (e) {
+      setActionError(
+        e instanceof Error ? e.message : 'Échec de la suppression du compte.',
+      )
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   return (
     <div className="space-y-4 max-w-3xl mx-auto">
       <div>
@@ -89,8 +114,7 @@ export default function AdminUsers() {
           Administration — membres
         </h1>
         <p className="text-gray-600 mt-1">
-          Gère les rôles BDE et tuteur des comptes. (Le rôle admin se gère en
-          base.)
+          Gère le rôle tuteur des comptes et supprime les comptes obsolètes.
         </p>
       </div>
 
@@ -152,20 +176,25 @@ export default function AdminUsers() {
                   <p className="text-sm text-gray-500 truncate">{u.email}</p>
                 )}
               </div>
-              <div className="flex gap-2 shrink-0">
-                <RolePill
-                  label="Membre BDE"
-                  active={u.is_bde_member}
-                  disabled={savingId === u.id}
-                  onClick={() => toggle(u, 'is_bde_member')}
-                />
-                <RolePill
-                  label="Tuteur"
-                  active={u.is_tutor}
-                  disabled={savingId === u.id}
-                  onClick={() => toggle(u, 'is_tutor')}
-                />
-              </div>
+              {u.is_admin ? null : (
+                <div className="flex items-center gap-2 shrink-0">
+                  <RolePill
+                    label="Tuteur"
+                    active={u.is_tutor}
+                    disabled={savingId === u.id}
+                    onClick={() => toggle(u, 'is_tutor')}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(u)}
+                    disabled={deletingId === u.id}
+                    aria-label={`Supprimer le compte ${u.full_name || u.email || ''}`}
+                    className="p-1.5 text-red-600 hover:bg-red-50 rounded-md disabled:opacity-50"
+                  >
+                    <Trash2 size={16} aria-hidden />
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>

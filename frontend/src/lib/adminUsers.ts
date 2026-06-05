@@ -1,4 +1,4 @@
-import { apiGet, apiPatch } from './api'
+import { apiGet, apiPatch, apiDelete } from './api'
 
 export type AdminUser = {
   id: string
@@ -24,4 +24,9 @@ export function updateUserRoles(
   roles: EditableRoles,
 ): Promise<AdminUser> {
   return apiPatch<AdminUser>(`/admin/users/${id}`, roles)
+}
+
+/** Supprime définitivement un compte (le profil part en cascade). */
+export function deleteUser(id: string): Promise<unknown> {
+  return apiDelete(`/admin/users/${id}`)
 }

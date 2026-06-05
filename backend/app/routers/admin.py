@@ -134,3 +134,37 @@ async def update_user_roles(
         is_admin=bool(p.get("is_admin")),
         is_tutor=bool(p.get("is_tutor")),
     )
+
+
+@router.delete("/users/{user_id}", status_code=204)
+async def delete_user(
+    user_id: str,
+    _: str = Depends(require_admin),
+) -> None:
+    """Supprime un compte (auth.users → profil supprimé en cascade).
+
+    Garde-fou : on refuse de supprimer un compte admin (protège le compte
+    « tous droits »).
+    """
+    base = get_settings().supabase_url
+    async with httpx.AsyncClient(timeout=20) as client:
+        prof = await client.get(
+            f"{base}/rest/v1/profiles",
+            params={"id": f"eq.{user_id}", "select": "is_admin"},
+            headers=_service_headers(),
+        )
+        if prof.status_code == 200:
+            rows = prof.json()
+            if rows and rows[0].get("is_admin"):
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN,
+                    "Impossible de supprimer un compte admin",
+                )
+        resp = await client.delete(
+            f"{base}/auth/v1/admin/users/{user_id}",
+            headers=_service_headers(),
+        )
+    if resp.status_code not in (200, 204):
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, "Échec de la suppression du compte"
+        )
