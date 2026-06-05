@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { FileText, Download, Eye, EyeOff, Pencil, Trash2 } from 'lucide-react'
+import { FileText, Download, Pencil, Trash2 } from 'lucide-react'
 import {
   DOC_TYPE_LABELS,
   DOC_TYPE_COLORS,
@@ -23,20 +23,38 @@ type Props = {
 }
 
 /**
- * Carte d'un document : métadonnées + téléchargement + aperçu PDF inline.
- * En mode `admin`, ajoute Modifier / Supprimer. Partagée entre la vue étudiant
- * et la vue BDE.
+ * Carte d'un document : métadonnées + téléchargement. Cliquer sur le nom ouvre
+ * le fichier (aperçu inline, ex. PDF) dans un nouvel onglet. En mode `admin`,
+ * ajoute Modifier / Supprimer. Partagée entre la vue étudiant et la vue BDE.
  */
 export function DocumentCard({ doc, admin }: Props) {
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 
-  const isPdf = doc.content_type === 'application/pdf'
   const dateLabel = format(new Date(doc.created_at), 'd MMM yyyy', {
     locale: fr,
   })
   const sizeLabel = formatFileSize(doc.file_size)
+
+  /** Ouvre le fichier (URL signée inline) dans un nouvel onglet. */
+  async function handleOpen() {
+    setBusy(true)
+    setActionError(null)
+    // Onglet ouvert SYNCHRONIQUEMENT dans le geste utilisateur (sinon le bloqueur
+    // de pop-up l'intercepte une fois l'await résolu) ; opener coupé par sécurité.
+    const tab = window.open('about:blank', '_blank')
+    if (tab) tab.opener = null
+    try {
+      const url = await getPreviewUrl(doc)
+      if (tab) tab.location.href = url
+      else window.location.href = url // pop-up bloqué : repli sur l'onglet courant
+    } catch (e) {
+      tab?.close()
+      setActionError(e instanceof Error ? e.message : 'Ouverture impossible.')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function handleDownload() {
     setBusy(true)
@@ -58,22 +76,6 @@ export function DocumentCard({ doc, admin }: Props) {
     }
   }
 
-  async function togglePreview() {
-    if (previewUrl) {
-      setPreviewUrl(null)
-      return
-    }
-    setBusy(true)
-    setActionError(null)
-    try {
-      setPreviewUrl(await getPreviewUrl(doc))
-    } catch (e) {
-      setActionError(e instanceof Error ? e.message : 'Aperçu impossible.')
-    } finally {
-      setBusy(false)
-    }
-  }
-
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
       <div className="flex items-start gap-3 min-w-0">
@@ -84,9 +86,15 @@ export function DocumentCard({ doc, admin }: Props) {
         />
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-semibold text-gray-900 break-words">
+            <button
+              type="button"
+              onClick={handleOpen}
+              disabled={busy}
+              title="Ouvrir dans un nouvel onglet"
+              className="font-semibold text-gray-900 break-words text-left hover:text-black hover:underline focus:outline-none focus:underline disabled:opacity-50 disabled:no-underline"
+            >
               {doc.title}
-            </h3>
+            </button>
             <span
               className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${DOC_TYPE_COLORS[doc.doc_type]}`}
             >
@@ -121,26 +129,6 @@ export function DocumentCard({ doc, admin }: Props) {
           <Download size={16} aria-hidden />
           Télécharger
         </button>
-        {isPdf && (
-          <button
-            type="button"
-            onClick={togglePreview}
-            disabled={busy}
-            className="inline-flex items-center gap-1.5 bg-white text-black border border-gray-300 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {previewUrl ? (
-              <>
-                <EyeOff size={16} aria-hidden />
-                Masquer
-              </>
-            ) : (
-              <>
-                <Eye size={16} aria-hidden />
-                Aperçu
-              </>
-            )}
-          </button>
-        )}
         {admin && (
           <>
             <button
@@ -164,14 +152,6 @@ export function DocumentCard({ doc, admin }: Props) {
           </>
         )}
       </div>
-
-      {previewUrl && (
-        <iframe
-          src={previewUrl}
-          title={`Aperçu de ${doc.title}`}
-          className="mt-3 w-full h-[70vh] rounded-md border border-gray-200"
-        />
-      )}
     </div>
   )
 }
