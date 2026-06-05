@@ -17,3 +17,12 @@ body,
     cursor: pointer;
   }
 }
+
+/* Événements de l'agenda (react-big-calendar) : montrer qu'ils sont cliquables
+   (le titre est déjà exposé en tooltip natif via tooltipAccessor). */
+.rbc-event {
+  cursor: pointer;
+}
+.rbc-event:hover {
+  filter: brightness(0.92);
+}

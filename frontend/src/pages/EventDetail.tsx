@@ -33,7 +33,9 @@ export default function EventDetail() {
     let cancelled = false
     supabase
       .from('events')
-      .select('*')
+      .select(
+        'id, title, description, start_date, end_date, color, location, image_url, external_link',
+      )
       .eq('id', id)
       .single()
       .then(({ data, error }) => {

@@ -52,7 +52,11 @@ export default function Layout() {
               to="/"
               className="flex items-center text-xl font-bold text-black"
             >
-              <img src={logo} className="max-h-24 max-w-24" />
+              <img
+                src={logo}
+                alt="Logo AEGP"
+                className="max-h-24 max-w-24"
+              />
               AEGP Site officiel
             </NavLink>
           </div>
@@ -64,7 +68,7 @@ export default function Layout() {
               Agenda
             </NavLink>
             <NavLink to="/boiteaidee" className={linkClass}>
-              Boîte à idée
+              Boîte à idées
             </NavLink>
             <NavLink to="/tutorat" className={linkClass}>
               Tutorat
@@ -105,7 +109,7 @@ export default function Layout() {
               Agenda
             </NavLink>
             <NavLink to="/boiteaidee" className={mobileLinkClass}>
-              Boîte à idée
+              Boîte à idées
             </NavLink>
             <NavLink to="/tutorat" className={mobileLinkClass}>
               Tutorat
