@@ -13,6 +13,7 @@ type EventRow = {
   description: string | null
   start_date: string
   end_date: string | null
+  color: string | null
   location: string | null
   external_link: string | null
   image_url: string | null
@@ -34,7 +35,7 @@ export default function EventEdit() {
     supabase
       .from('events')
       .select(
-        'title, description, start_date, end_date, location, external_link, image_url',
+        'title, description, start_date, end_date, color, location, external_link, image_url',
       )
       .eq('id', id)
       .single()
@@ -49,6 +50,7 @@ export default function EventEdit() {
             description: row.description ?? '',
             start_date: row.start_date,
             end_date: row.end_date ?? '',
+            color: row.color ?? '',
             location: row.location ?? '',
             external_link: row.external_link ?? '',
           })
@@ -90,6 +92,7 @@ export default function EventEdit() {
       description: values.description || null,
       start_date: values.start_date,
       end_date: values.end_date || null,
+      color: values.color || null,
       location: values.location || null,
       external_link: values.external_link || null,
     }
