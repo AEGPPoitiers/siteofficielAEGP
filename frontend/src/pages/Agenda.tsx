@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router'
-import { Calendar, dateFnsLocalizer } from 'react-big-calendar'
+import { Calendar, dateFnsLocalizer, type View } from 'react-big-calendar'
 import { format, parse, startOfWeek, getDay } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { supabase } from '../lib/supabase'
@@ -8,6 +8,11 @@ import { useIsBdeMember } from '../lib/useIsBdeMember'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 
 const locales = { fr: fr }
+
+// Vues Semaine/Jour : ouvrir la grille horaire vers 7 h (sinon elle démarre à
+// minuit, plage vide). Référence stable au niveau module (l'heure du jour importe
+// peu, seule l'heure de la journée est utilisée par react-big-calendar).
+const SCROLL_TO_TIME = new Date(1970, 0, 1, 7, 0, 0)
 
 const localizer = dateFnsLocalizer({
   format,
@@ -53,6 +58,7 @@ export default function Agenda() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentDate, setCurrentDate] = useState(new Date())
+  const [view, setView] = useState<View>('month')
 
   useEffect(() => {
     let cancelled = false
@@ -67,12 +73,19 @@ export default function Agenda() {
             `Impossible de charger les événements : ${fetchError.message}`,
           )
         } else if (data) {
-          const mapped = (data as EventRow[]).map((e) => ({
-            id: e.id,
-            title: e.title,
-            start: new Date(e.start_date),
-            end: new Date(e.start_date),
-          }))
+          const mapped = (data as EventRow[]).map((e) => {
+            const start = new Date(e.start_date)
+            return {
+              id: e.id,
+              title: e.title,
+              start,
+              // Pas de durée stockée : on donne 1 h par défaut UNIQUEMENT pour
+              // l'affichage, afin que l'événement soit visible/cliquable dans la
+              // grille horaire (vues Semaine et Jour). Sans impact sur le mois ni
+              // sur la page de détail (qui n'affiche que l'heure de début).
+              end: new Date(start.getTime() + 60 * 60 * 1000),
+            }
+          })
           setEvents(mapped)
         }
         setLoading(false)
@@ -132,9 +145,10 @@ export default function Agenda() {
             events={events}
             culture="fr"
             messages={messages}
-            views={['month']}
-            view="month"
-            onView={() => {}}
+            views={['month', 'week', 'day']}
+            view={view}
+            onView={setView}
+            scrollToTime={SCROLL_TO_TIME}
             date={currentDate}
             onNavigate={(newDate) => setCurrentDate(newDate)}
             onSelectEvent={handleSelectEvent}
