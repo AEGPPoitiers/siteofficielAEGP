@@ -22,6 +22,15 @@ const localizer = dateFnsLocalizer({
   locales,
 })
 
+const capitalizeFirst = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+
+// Capitalise le nom du mois (date-fns fr le renvoie en minuscule) dans l'en-tête
+// de la vue Mois.
+const calendarFormats = {
+  monthHeaderFormat: (date: Date) =>
+    capitalizeFirst(format(date, 'MMMM yyyy', { locale: fr })),
+}
+
 type EventRow = {
   id: string
   title: string
@@ -118,9 +127,6 @@ export default function Agenda() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Agenda</h1>
-          <p className="text-gray-600 mt-1">
-            Les événements du BDE, passés et à venir.
-          </p>
         </div>
         {isBde && (
           <Link
@@ -147,6 +153,7 @@ export default function Agenda() {
             events={events}
             culture="fr"
             messages={messages}
+            formats={calendarFormats}
             views={['month', 'week']}
             view={view}
             onView={setView}

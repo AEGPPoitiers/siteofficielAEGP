@@ -42,6 +42,7 @@ function formatRelative(iso: string): string {
 
 export function BoiteaideeAdmin() {
   const [ideas, setIdeas] = useState<Idea[]>([])
+  const [authorNames, setAuthorNames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<IdeaStatus | 'all'>('all')
@@ -56,10 +57,29 @@ export function BoiteaideeAdmin() {
       if (cancelled) return
       if (fetchError) {
         setError(`Impossible de charger les idées : ${fetchError.message}`)
-      } else if (data) {
-        setIdeas(data as Idea[])
+        setLoading(false)
+        return
       }
+      const rows = (data ?? []) as Idea[]
+      setIdeas(rows)
       setLoading(false)
+
+      // Noms des auteurs : jointure manuelle (ideas.created_by référence
+      // auth.users, pas profiles — pas d'embed PostgREST possible).
+      const ids = [
+        ...new Set(rows.map((i) => i.created_by).filter(Boolean)),
+      ] as string[]
+      if (ids.length === 0) return
+      const { data: profs } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', ids)
+      if (cancelled || !profs) return
+      const map: Record<string, string> = {}
+      for (const p of profs as { id: string; full_name: string | null }[]) {
+        if (p.full_name) map[p.id] = p.full_name
+      }
+      setAuthorNames(map)
     }
     fetchIdeas()
     return () => {
@@ -136,6 +156,9 @@ export function BoiteaideeAdmin() {
             <IdeaCard
               key={idea.id}
               idea={idea}
+              authorName={
+                idea.created_by ? authorNames[idea.created_by] : undefined
+              }
               onChangeStatus={changeStatus}
             />
           ))}
@@ -170,10 +193,11 @@ function FilterTab({ active, onClick, count, children }: FilterTabProps) {
 
 type IdeaCardProps = {
   idea: Idea
+  authorName?: string
   onChangeStatus: (id: string, status: IdeaStatus) => void
 }
 
-function IdeaCard({ idea, onChangeStatus }: IdeaCardProps) {
+function IdeaCard({ idea, authorName, onChangeStatus }: IdeaCardProps) {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
       <div className="flex items-start justify-between gap-4 mb-2">
@@ -189,13 +213,8 @@ function IdeaCard({ idea, onChangeStatus }: IdeaCardProps) {
       </p>
       <div className="flex items-center justify-between gap-2 text-xs text-gray-500">
         <span>
-          Par{' '}
-          {idea.created_by ? (
-            <code className="font-mono">{idea.created_by.slice(0, 8)}…</code>
-          ) : (
-            'anonyme'
-          )}{' '}
-          · {formatRelative(idea.created_at)}
+          Par {idea.created_by ? authorName || 'Étudiant' : 'anonyme'} ·{' '}
+          {formatRelative(idea.created_at)}
         </span>
         <select
           value={idea.status}

@@ -78,7 +78,7 @@ export default function TutoratBrowse() {
         </div>
       ) : (
         <div className="space-y-8">
-          {children.length > 0 && <NodeGrid nodes={children} onEnter={enter} />}
+          {children.length > 0 && <NodeList nodes={children} onEnter={enter} />}
           {current && (
             // key = remonte le composant (et réinitialise son état) à chaque dossier
             <DocumentList
@@ -95,10 +95,10 @@ export default function TutoratBrowse() {
 }
 
 // ----------------------------------------------------------------------------
-// Grille de dossiers (promos / options / matières)
+// Liste de dossiers (promos / options / matières)
 // ----------------------------------------------------------------------------
 
-function NodeGrid({
+function NodeList({
   nodes,
   onEnter,
 }: {
@@ -113,7 +113,7 @@ function NodeGrid({
     )
   }
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div className="space-y-2">
       {nodes.map((node) => (
         <button
           key={node.id}
