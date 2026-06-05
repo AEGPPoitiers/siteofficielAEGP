@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate, Link } from 'react-router'
+import { useNavigate, useLocation, Link } from 'react-router'
 import { useAuth } from '../contexts/AuthContext'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
@@ -9,6 +9,9 @@ import { FormCard } from '../components/ui/FormCard'
 export default function Login() {
   const { signIn } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  // Page protégée d'où l'on a été redirigé (cf. ProtectedRoute & co).
+  const from = (location.state as { from?: string } | null)?.from ?? null
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -25,7 +28,8 @@ export default function Login() {
     if (error) {
       setErrorMessage('Email ou mot de passe invalide')
     } else {
-      navigate('/')
+      // Retour à la page initialement demandée si on y a été redirigé.
+      navigate(from ?? '/')
     }
 
     setSubmitting(false)
@@ -33,6 +37,11 @@ export default function Login() {
 
   return (
     <FormCard title="Connexion">
+      {from && (
+        <div className="mb-4 text-sm text-gray-700 bg-blue-50 border border-blue-200 rounded-md px-3 py-2">
+          Connecte-toi pour accéder à cette page.
+        </div>
+      )}
       <form onSubmit={handleSubmit}>
         <Input
           id="email"
