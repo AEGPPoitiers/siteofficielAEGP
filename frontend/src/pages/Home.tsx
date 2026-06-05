@@ -1,4 +1,5 @@
 import { Link } from 'react-router'
+import afficheCafet from '../assets/affiche-cafet.jpeg'
 
 export default function Home() {
   return (
@@ -39,6 +40,25 @@ export default function Home() {
           <h2 className="text-2xl font-semibold text-gray-900 mb-2">Tutorat</h2>
           <p className="text-gray-600">Cours, TD, TP, et annales.</p>
         </Link>
+      </section>
+
+      <section className="text-center">
+        <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+          Menu de la cafétéria
+        </h2>
+        <a
+          href={afficheCafet}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block"
+        >
+          <img
+            src={afficheCafet}
+            alt="Menu de la cafétéria AEGP"
+            className="mx-auto w-full max-w-md rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+          />
+        </a>
+        <p className="text-sm text-gray-500 mt-2">Cliquez pour agrandir</p>
       </section>
     </div>
   )

@@ -32,3 +32,6 @@ Thumbs.db
 !.vscode/settings.json
 # Liste de tâches perso (hors repo)
 afaire.txt
+
+# Notes perso (hors repo)
+audit-secu.txt
