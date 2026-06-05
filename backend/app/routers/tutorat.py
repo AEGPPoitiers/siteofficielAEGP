@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from .. import b2
 from ..auth import get_current_user_id
 from ..config import get_settings
-from ..deps import require_bde_member
+from ..deps import require_tutorat_editor
 
 router = APIRouter(prefix="/tutorat", tags=["tutorat"])
 
@@ -40,9 +40,9 @@ class PresignUploadOut(BaseModel):
 @router.post("/presign-upload", response_model=PresignUploadOut)
 def presign_upload(
     payload: PresignUploadIn,
-    _: str = Depends(require_bde_member),
+    _: str = Depends(require_tutorat_editor),
 ) -> PresignUploadOut:
-    """Réservé BDE. Génère la `file_key` côté serveur (le client ne la choisit jamais)."""
+    """Réservé BDE/admin/tuteur. Génère la `file_key` côté serveur (le client ne la choisit jamais)."""
     settings = get_settings()
     file_key = f"tutorat/{payload.node_id}/{uuid.uuid4()}.{_extension(payload.file_name)}"
     url = b2.presign_put(file_key, payload.content_type, settings.upload_url_ttl)
@@ -80,7 +80,7 @@ def download_url(
 @router.delete("/object", status_code=204)
 def delete_object(
     key: str = Query(..., min_length=1),
-    _: str = Depends(require_bde_member),
+    _: str = Depends(require_tutorat_editor),
 ) -> None:
-    """Réservé BDE. Supprime l'objet B2 (cleanup après suppression d'une row document)."""
+    """Réservé BDE/admin/tuteur. Supprime l'objet B2 (cleanup après suppression d'une row document)."""
     b2.delete_object(key)

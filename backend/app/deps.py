@@ -19,7 +19,10 @@ async def _fetch_profile(user_id: str) -> dict | None:
     async with httpx.AsyncClient(timeout=10) as client:
         resp = await client.get(
             f"{settings.supabase_url}/rest/v1/profiles",
-            params={"id": f"eq.{user_id}", "select": "is_bde_member,is_admin"},
+            params={
+                "id": f"eq.{user_id}",
+                "select": "is_bde_member,is_admin,is_tutor",
+            },
             headers={
                 "apikey": settings.supabase_service_role_key,
                 "Authorization": f"Bearer {settings.supabase_service_role_key}",
@@ -41,4 +44,24 @@ async def require_bde_member(
         profile.get("is_bde_member") or profile.get("is_admin")
     ):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "BDE member required")
+    return user_id
+
+
+async def require_tutorat_editor(
+    user_id: str = Depends(get_current_user_id),
+) -> str:
+    """Édition du tutorat : membres BDE, admins OU tuteurs (is_tutor).
+
+    Les tuteurs n'ont ce droit QUE sur le tutorat — les endpoints agenda/idées
+    restent gardés par require_bde_member.
+    """
+    profile = await _fetch_profile(user_id)
+    if not profile or not (
+        profile.get("is_bde_member")
+        or profile.get("is_admin")
+        or profile.get("is_tutor")
+    ):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "Tutorat editor required"
+        )
     return user_id
