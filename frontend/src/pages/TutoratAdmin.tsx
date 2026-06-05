@@ -166,8 +166,10 @@ function DocumentManager({
       onError(`Impossible de supprimer : ${deleteError.message}`)
       return
     }
-    // Cleanup B2 best-effort (cf removeEventImage côté agenda).
-    await deleteObject(doc.file_key).catch((e) =>
+    // Nettoyage B2 best-effort, lancé en ARRIÈRE-PLAN : on ne bloque pas l'UI
+    // sur cet appel Render (qui peut être lent à froid). Un éventuel orphelin B2
+    // n'a pas d'impact côté métadonnées. La ligne disparaît donc immédiatement.
+    void deleteObject(doc.file_key).catch((e) =>
       console.warn('[tutorat] suppression objet B2 échouée :', e),
     )
     setDeletingId(null)
