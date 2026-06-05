@@ -26,6 +26,7 @@ type EventRow = {
   id: string
   title: string
   start_date: string
+  end_date: string | null
 }
 
 type CalendarEvent = {
@@ -64,7 +65,7 @@ export default function Agenda() {
     let cancelled = false
     supabase
       .from('events')
-      .select('id, title, start_date')
+      .select('id, title, start_date, end_date')
       .order('start_date')
       .then(({ data, error: fetchError }) => {
         if (cancelled) return
@@ -79,11 +80,12 @@ export default function Agenda() {
               id: e.id,
               title: e.title,
               start,
-              // Pas de durée stockée : on donne 1 h par défaut UNIQUEMENT pour
-              // l'affichage, afin que l'événement soit visible/cliquable dans la
-              // grille horaire (vues Semaine et Jour). Sans impact sur le mois ni
-              // sur la page de détail (qui n'affiche que l'heure de début).
-              end: new Date(start.getTime() + 60 * 60 * 1000),
+              // Fin réelle si saisie ; sinon 1 h par défaut, uniquement pour que
+              // l'événement reste visible/cliquable dans la grille horaire (vue
+              // Semaine). Sans impact sur la vue Mois.
+              end: e.end_date
+                ? new Date(e.end_date)
+                : new Date(start.getTime() + 60 * 60 * 1000),
             }
           })
           setEvents(mapped)
@@ -145,7 +147,7 @@ export default function Agenda() {
             events={events}
             culture="fr"
             messages={messages}
-            views={['month', 'week', 'day']}
+            views={['month', 'week']}
             view={view}
             onView={setView}
             scrollToTime={SCROLL_TO_TIME}

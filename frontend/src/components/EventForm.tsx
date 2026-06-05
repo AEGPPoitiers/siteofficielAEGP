@@ -16,6 +16,8 @@ export type EventFormValues = {
   title: string
   description: string
   start_date: string
+  /** ISO de fin, ou chaîne vide si pas d'heure de fin définie. */
+  end_date: string
   location: string
   external_link: string
 }
@@ -79,6 +81,23 @@ function dateTimeInputsToIso(
   return new Date(`${dateStr}T${hourStr}:${minuteStr}`).toISOString()
 }
 
+/**
+ * ISO de fin, calculée sur la date de début. Si l'heure de fin est ≤ l'heure de
+ * début, l'événement est réputé se terminer le lendemain (cas soirée 22h→02h).
+ */
+function endInputsToIso(
+  dateStr: string,
+  startIso: string,
+  hourStr: string,
+  minuteStr: string,
+): string {
+  const end = new Date(`${dateStr}T${hourStr}:${minuteStr}`)
+  if (end.getTime() <= new Date(startIso).getTime()) {
+    end.setDate(end.getDate() + 1)
+  }
+  return end.toISOString()
+}
+
 export function EventForm({
   initialValues = {},
   currentImageUrl = null,
@@ -97,6 +116,12 @@ export function EventForm({
   )
   const [minuteValue, setMinuteValue] = useState(
     isoToMinute(initialValues.start_date ?? ''),
+  )
+  const [endHourValue, setEndHourValue] = useState(
+    isoToHour(initialValues.end_date ?? ''),
+  )
+  const [endMinuteValue, setEndMinuteValue] = useState(
+    isoToMinute(initialValues.end_date ?? ''),
   )
   const [location, setLocation] = useState(initialValues.location ?? '')
   const [externalLink, setExternalLink] = useState(
@@ -172,6 +197,12 @@ export function EventForm({
       setError("L'heure est obligatoire.")
       return
     }
+    // Heure de fin optionnelle : les deux champs ensemble, ou aucun.
+    const hasEnd = !!endHourValue && !!endMinuteValue
+    if ((endHourValue || endMinuteValue) && !hasEnd) {
+      setError("L'heure de fin est incomplète (heures et minutes).")
+      return
+    }
     if (d.length > DESCRIPTION_MAX) {
       setError(
         `La description ne doit pas dépasser ${DESCRIPTION_MAX} caractères.`,
@@ -179,12 +210,17 @@ export function EventForm({
       return
     }
 
+    const startIso = dateTimeInputsToIso(dateValue, hourValue, minuteValue)
+
     setSubmitting(true)
     const result = await onSubmit({
       values: {
         title: t,
         description: d,
-        start_date: dateTimeInputsToIso(dateValue, hourValue, minuteValue),
+        start_date: startIso,
+        end_date: hasEnd
+          ? endInputsToIso(dateValue, startIso, endHourValue, endMinuteValue)
+          : '',
         location: loc,
         external_link: ext,
       },
@@ -274,6 +310,52 @@ export function EventForm({
             </select>
           </div>
         </div>
+      </div>
+
+      <div className="mb-4">
+        <label
+          htmlFor="event-end-hour"
+          className="block text-sm font-medium text-gray-700 mb-1"
+        >
+          Heure de fin (optionnel)
+        </label>
+        <div className="flex items-center gap-2 max-w-xs">
+          <select
+            id="event-end-hour"
+            value={endHourValue}
+            onChange={(e) => setEndHourValue(e.target.value)}
+            disabled={submitting}
+            aria-label="Heures de fin"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white"
+          >
+            <option value="">HH</option>
+            {HOURS.map((h) => (
+              <option key={h} value={h}>
+                {h}
+              </option>
+            ))}
+          </select>
+          <span className="text-gray-500">:</span>
+          <select
+            id="event-end-minute"
+            value={endMinuteValue}
+            onChange={(e) => setEndMinuteValue(e.target.value)}
+            disabled={submitting}
+            aria-label="Minutes de fin"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-black bg-white"
+          >
+            <option value="">MM</option>
+            {MINUTES.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+        </div>
+        <p className="text-xs text-gray-500 mt-1">
+          Laisse vide si pas d'heure de fin. Si la fin est avant le début,
+          l'événement se termine le lendemain (soirée).
+        </p>
       </div>
 
       <div className="mb-4">

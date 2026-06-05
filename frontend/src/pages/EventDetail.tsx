@@ -11,6 +11,7 @@ type Event = {
   title: string
   description: string | null
   start_date: string
+  end_date: string | null
   location: string | null
   image_url: string | null
   external_link: string | null
@@ -95,11 +96,17 @@ export default function EventDetail() {
     )
   }
 
-  const dateLabel = format(
-    new Date(event.start_date),
-    "EEEE d MMMM yyyy 'à' HH:mm",
-    { locale: fr },
-  )
+  const start = new Date(event.start_date)
+  const startLabel = format(start, "EEEE d MMMM yyyy 'à' HH:mm", { locale: fr })
+  let dateLabel = startLabel
+  if (event.end_date) {
+    const end = new Date(event.end_date)
+    const sameDay =
+      format(start, 'yyyy-MM-dd') === format(end, 'yyyy-MM-dd')
+    dateLabel = sameDay
+      ? `${format(start, "EEEE d MMMM yyyy 'de' HH:mm", { locale: fr })} à ${format(end, 'HH:mm', { locale: fr })}`
+      : `${startLabel} → ${format(end, "EEEE d MMMM yyyy 'à' HH:mm", { locale: fr })}`
+  }
 
   return (
     <article className="max-w-2xl mx-auto space-y-4">
