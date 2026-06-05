@@ -8,8 +8,10 @@ import EventEdit from './pages/EventEdit'
 import Tutorat from './pages/Tutorat'
 import Login from './pages/Login'
 import Boiteaidee from './pages/Boiteaidee'
+import AdminUsers from './pages/AdminUsers'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { BdeProtectedRoute } from './components/BdeProtectedRoute'
+import { AdminProtectedRoute } from './components/AdminProtectedRoute'
 import SetPassword from './pages/SetPassword'
 import ResetPassword from './pages/ResetPassword'
 
@@ -59,6 +61,14 @@ export default function App() {
             <ProtectedRoute>
               <SetPassword />
             </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <AdminProtectedRoute>
+              <AdminUsers />
+            </AdminProtectedRoute>
           }
         />
         <Route path="/reset-password" element={<ResetPassword />} />

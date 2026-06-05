@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Menu, X, LogOut } from 'lucide-react'
 import logo from '../assets/logo_aegp.svg'
 import { useAuth } from '../contexts/AuthContext'
+import { useIsBdeMember } from '../lib/useIsBdeMember'
 import UserMenu from './UserMenu'
 
 function getBgClass(pathname: string): string {
@@ -32,6 +33,7 @@ export default function Layout() {
   const bgClass = getBgClass(pathname)
 
   const { user, signOut } = useAuth()
+  const { isAdmin } = useIsBdeMember()
   const navigate = useNavigate()
 
   async function handleSignout() {
@@ -67,6 +69,11 @@ export default function Layout() {
             <NavLink to="/tutorat" className={linkClass}>
               Tutorat
             </NavLink>
+            {isAdmin && (
+              <NavLink to="/admin" className={linkClass}>
+                Admin
+              </NavLink>
+            )}
             {user ? (
               <UserMenu />
             ) : (
@@ -103,6 +110,11 @@ export default function Layout() {
             <NavLink to="/tutorat" className={mobileLinkClass}>
               Tutorat
             </NavLink>
+            {isAdmin && (
+              <NavLink to="/admin" className={mobileLinkClass}>
+                Admin
+              </NavLink>
+            )}
             {user ? (
               <>
                 <div className="px-3 pt-3 pb-1 text-xs text-gray-500 border-t border-gray-200 mt-1 truncate">
