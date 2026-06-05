@@ -36,6 +36,7 @@ type EventRow = {
   title: string
   start_date: string
   end_date: string | null
+  color: string | null
 }
 
 type CalendarEvent = {
@@ -43,6 +44,7 @@ type CalendarEvent = {
   title: string
   start: Date
   end: Date
+  color: string | null
 }
 
 const messages = {
@@ -74,7 +76,7 @@ export default function Agenda() {
     let cancelled = false
     supabase
       .from('events')
-      .select('id, title, start_date, end_date')
+      .select('id, title, start_date, end_date, color')
       .order('start_date')
       .then(({ data, error: fetchError }) => {
         if (cancelled) return
@@ -95,6 +97,7 @@ export default function Agenda() {
               end: e.end_date
                 ? new Date(e.end_date)
                 : new Date(start.getTime() + 60 * 60 * 1000),
+              color: e.color,
             }
           })
           setEvents(mapped)
@@ -120,6 +123,14 @@ export default function Agenda() {
       navigate(`/agenda/new?date=${encodeURIComponent(dateIso)}`)
     },
     [isBde, navigate],
+  )
+
+  const eventPropGetter = useCallback(
+    (event: CalendarEvent) =>
+      event.color
+        ? { style: { backgroundColor: event.color, borderColor: event.color } }
+        : {},
+    [],
   )
 
   return (
@@ -162,6 +173,7 @@ export default function Agenda() {
             onNavigate={(newDate) => setCurrentDate(newDate)}
             onSelectEvent={handleSelectEvent}
             onSelectSlot={handleSelectSlot}
+            eventPropGetter={eventPropGetter}
             selectable
             style={{ height: 600 }}
           />

@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { FieldError } from '../components/ui/FieldError'
 
@@ -102,6 +103,27 @@ export function BoiteaideeAdmin() {
     }
   }
 
+  async function deleteIdea(id: string) {
+    const idea = ideas.find((i) => i.id === id)
+    if (
+      !window.confirm(
+        `Supprimer définitivement l'idée « ${idea?.title ?? ''} » ? Action irréversible.`,
+      )
+    ) {
+      return
+    }
+    const previous = ideas
+    setIdeas((prev) => prev.filter((i) => i.id !== id))
+    const { error: deleteError } = await supabase
+      .from('ideas')
+      .delete()
+      .eq('id', id)
+    if (deleteError) {
+      setIdeas(previous)
+      setError(`Impossible de supprimer : ${deleteError.message}`)
+    }
+  }
+
   const counts: Record<IdeaStatus | 'all', number> = {
     all: ideas.length,
     nouvelle: ideas.filter((i) => i.status === 'nouvelle').length,
@@ -160,6 +182,7 @@ export function BoiteaideeAdmin() {
                 idea.created_by ? authorNames[idea.created_by] : undefined
               }
               onChangeStatus={changeStatus}
+              onDelete={deleteIdea}
             />
           ))}
         </div>
@@ -195,9 +218,15 @@ type IdeaCardProps = {
   idea: Idea
   authorName?: string
   onChangeStatus: (id: string, status: IdeaStatus) => void
+  onDelete: (id: string) => void
 }
 
-function IdeaCard({ idea, authorName, onChangeStatus }: IdeaCardProps) {
+function IdeaCard({
+  idea,
+  authorName,
+  onChangeStatus,
+  onDelete,
+}: IdeaCardProps) {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
       <div className="flex items-start justify-between gap-4 mb-2">
@@ -216,20 +245,30 @@ function IdeaCard({ idea, authorName, onChangeStatus }: IdeaCardProps) {
           Par {idea.created_by ? authorName || 'Étudiant' : 'anonyme'} ·{' '}
           {formatRelative(idea.created_at)}
         </span>
-        <select
-          value={idea.status}
-          onChange={(e) =>
-            onChangeStatus(idea.id, e.target.value as IdeaStatus)
-          }
-          className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-black bg-white"
-          aria-label="Changer le statut"
-        >
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {STATUS_LABELS[s]}
-            </option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2 shrink-0">
+          <select
+            value={idea.status}
+            onChange={(e) =>
+              onChangeStatus(idea.id, e.target.value as IdeaStatus)
+            }
+            className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-black bg-white"
+            aria-label="Changer le statut"
+          >
+            {STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {STATUS_LABELS[s]}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => onDelete(idea.id)}
+            aria-label="Supprimer l'idée"
+            className="p-1.5 text-red-600 hover:bg-red-50 rounded-md"
+          >
+            <Trash2 size={14} aria-hidden />
+          </button>
+        </div>
       </div>
     </div>
   )

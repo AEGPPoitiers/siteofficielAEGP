@@ -11,6 +11,7 @@ import { Button } from './ui/Button'
 import { Input } from './ui/Input'
 import { Textarea } from './ui/Textarea'
 import { FieldError } from './ui/FieldError'
+import { EVENT_COLORS } from '../lib/eventColors'
 
 export type EventFormValues = {
   title: string
@@ -18,6 +19,8 @@ export type EventFormValues = {
   start_date: string
   /** ISO de fin, ou chaîne vide si pas d'heure de fin définie. */
   end_date: string
+  /** Couleur hex (#RRGGBB), ou chaîne vide si aucune. */
+  color: string
   location: string
   external_link: string
 }
@@ -123,6 +126,7 @@ export function EventForm({
   const [endMinuteValue, setEndMinuteValue] = useState(
     isoToMinute(initialValues.end_date ?? ''),
   )
+  const [color, setColor] = useState(initialValues.color ?? '')
   const [location, setLocation] = useState(initialValues.location ?? '')
   const [externalLink, setExternalLink] = useState(
     initialValues.external_link ?? '',
@@ -221,6 +225,7 @@ export function EventForm({
         end_date: hasEnd
           ? endInputsToIso(dateValue, startIso, endHourValue, endMinuteValue)
           : '',
+        color,
         location: loc,
         external_link: ext,
       },
@@ -356,6 +361,43 @@ export function EventForm({
           Laisse vide si pas d'heure de fin. Si la fin est avant le début,
           l'événement se termine le lendemain (soirée).
         </p>
+      </div>
+
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Couleur (optionnel)
+        </label>
+        <div className="flex items-center gap-2 flex-wrap">
+          {EVENT_COLORS.map((c) => (
+            <button
+              key={c.value}
+              type="button"
+              onClick={() =>
+                setColor((prev) => (prev === c.value ? '' : c.value))
+              }
+              disabled={submitting}
+              aria-label={c.label}
+              aria-pressed={color === c.value}
+              title={c.label}
+              className={`w-7 h-7 rounded-full border-2 transition ${
+                color === c.value
+                  ? 'border-black ring-2 ring-offset-1 ring-black'
+                  : 'border-transparent hover:border-gray-300'
+              }`}
+              style={{ backgroundColor: c.value }}
+            />
+          ))}
+          {color && (
+            <button
+              type="button"
+              onClick={() => setColor('')}
+              disabled={submitting}
+              className="text-xs text-gray-500 underline ml-1"
+            >
+              Aucune
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="mb-4">

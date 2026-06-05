@@ -12,6 +12,7 @@ type Event = {
   description: string | null
   start_date: string
   end_date: string | null
+  color: string | null
   location: string | null
   image_url: string | null
   external_link: string | null
@@ -123,7 +124,16 @@ export default function EventDetail() {
         )}
 
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">{event.title}</h1>
+          <div className="flex items-center gap-2">
+            {event.color && (
+              <span
+                className="inline-block w-3 h-3 rounded-full shrink-0"
+                style={{ backgroundColor: event.color }}
+                aria-hidden
+              />
+            )}
+            <h1 className="text-3xl font-bold text-gray-900">{event.title}</h1>
+          </div>
           <p className="text-gray-600 mt-2 first-letter:uppercase">
             {dateLabel}
           </p>
