@@ -47,6 +47,16 @@ async def require_bde_member(
     return user_id
 
 
+async def require_admin(
+    user_id: str = Depends(get_current_user_id),
+) -> str:
+    """Réservé aux admins (is_admin) — gestion des rôles, etc."""
+    profile = await _fetch_profile(user_id)
+    if not profile or not profile.get("is_admin"):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin required")
+    return user_id
+
+
 async def require_tutorat_editor(
     user_id: str = Depends(get_current_user_id),
 ) -> str:

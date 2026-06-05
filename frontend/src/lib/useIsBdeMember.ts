@@ -6,6 +6,8 @@ type BdeStatus = {
   loading: boolean
   /** Membre BDE ou admin → accès à l'admin BDE (agenda, boîte à idées, tutorat). */
   isBde: boolean
+  /** Admin (is_admin) → gestion des rôles. */
+  isAdmin: boolean
   /** Peut éditer le tutorat : BDE/admin OU tuteur (is_tutor). Les tuteurs n'ont
    *  ce droit QUE sur le tutorat. */
   canEditTutorat: boolean
@@ -16,6 +18,7 @@ export function useIsBdeMember(): BdeStatus {
   const userId = user?.id
   const [fetchedFor, setFetchedFor] = useState<string | null>(null)
   const [isBdeFlag, setIsBdeFlag] = useState(false)
+  const [isAdminFlag, setIsAdminFlag] = useState(false)
   const [isTutorFlag, setIsTutorFlag] = useState(false)
 
   useEffect(() => {
@@ -32,9 +35,11 @@ export function useIsBdeMember(): BdeStatus {
         if (cancelled) return
         if (error || !data) {
           setIsBdeFlag(false)
+          setIsAdminFlag(false)
           setIsTutorFlag(false)
         } else {
           setIsBdeFlag(!!data.is_bde_member || !!data.is_admin)
+          setIsAdminFlag(!!data.is_admin)
           setIsTutorFlag(!!data.is_tutor)
         }
         setFetchedFor(userId)
@@ -45,13 +50,20 @@ export function useIsBdeMember(): BdeStatus {
     }
   }, [userId, authLoading])
 
-  const idle = { loading: true, isBde: false, canEditTutorat: false }
+  const idle = {
+    loading: true,
+    isBde: false,
+    isAdmin: false,
+    canEditTutorat: false,
+  }
   if (authLoading) return idle
-  if (!userId) return { loading: false, isBde: false, canEditTutorat: false }
+  if (!userId)
+    return { loading: false, isBde: false, isAdmin: false, canEditTutorat: false }
   if (fetchedFor !== userId) return idle
   return {
     loading: false,
     isBde: isBdeFlag,
+    isAdmin: isAdminFlag,
     canEditTutorat: isBdeFlag || isTutorFlag,
   }
 }
