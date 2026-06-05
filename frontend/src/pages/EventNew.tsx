@@ -22,6 +22,7 @@ export default function EventNew() {
       title: values.title,
       description: values.description || null,
       start_date: values.start_date,
+      end_date: values.end_date || null,
       location: values.location || null,
       external_link: values.external_link || null,
       created_by: user.id,
