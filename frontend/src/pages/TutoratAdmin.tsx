@@ -13,6 +13,7 @@ import { TutoratBreadcrumb } from '../components/TutoratBreadcrumb'
 import { NodeManager } from '../components/NodeManager'
 import { DocumentForm } from '../components/DocumentForm'
 import { DocumentCard } from '../components/DocumentCard'
+import { useConfirm } from '../contexts/ConfirmContext'
 
 /**
  * Vue BDE du tutorat : même navigation que la vue étudiant, plus la gestion de
@@ -118,6 +119,7 @@ function DocumentManager({
   node: TutoratNode
   onError: (msg: string) => void
 }) {
+  const confirm = useConfirm()
   const [documents, setDocuments] = useState<TutoratDocument[]>([])
   const [loading, setLoading] = useState(true)
   const [token, setToken] = useState(0)
@@ -150,9 +152,13 @@ function DocumentManager({
   }
 
   async function handleDelete(doc: TutoratDocument) {
-    if (!window.confirm(`Supprimer « ${doc.title} » ? Action irréversible.`)) {
-      return
-    }
+    const ok = await confirm({
+      title: 'Supprimer le document',
+      message: `Supprimer « ${doc.title} » ? Action irréversible.`,
+      confirmLabel: 'Supprimer',
+      danger: true,
+    })
+    if (!ok) return
     setDeletingId(doc.id)
     const { error: deleteError } = await supabase
       .from('tutorat_documents')

@@ -8,6 +8,7 @@ import {
   type NodeKind,
   type TutoratNode,
 } from '../lib/tutorat'
+import { useConfirm } from '../contexts/ConfirmContext'
 
 const KIND_LABELS: Record<NodeKind, string> = {
   promo: 'Promo',
@@ -29,6 +30,7 @@ type Props = {
  * enfant. Le re-parentage n'est volontairement pas proposé.
  */
 export function NodeManager({ parent, nodes, onEnter, onChanged }: Props) {
+  const confirm = useConfirm()
   const kinds = allowedChildKinds(parent)
   const [newName, setNewName] = useState('')
   const [newKind, setNewKind] = useState<NodeKind>(kinds[0] ?? 'matiere')
@@ -98,7 +100,13 @@ export function NodeManager({ parent, nodes, onEnter, onChanged }: Props) {
       )
       return
     }
-    if (!window.confirm(`Supprimer « ${node.name} » ?`)) {
+    const ok = await confirm({
+      title: 'Supprimer le dossier',
+      message: `Supprimer « ${node.name} » ?`,
+      confirmLabel: 'Supprimer',
+      danger: true,
+    })
+    if (!ok) {
       setBusy(false)
       return
     }

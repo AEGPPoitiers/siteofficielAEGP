@@ -7,8 +7,10 @@ import {
   type AdminUser,
   type EditableRoles,
 } from '../lib/adminUsers'
+import { useConfirm } from '../contexts/ConfirmContext'
 
 export default function AdminUsers() {
+  const confirm = useConfirm()
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -86,13 +88,13 @@ export default function AdminUsers() {
 
   async function handleDelete(user: AdminUser) {
     const label = user.full_name || user.email || 'ce compte'
-    if (
-      !window.confirm(
-        `Supprimer définitivement le compte « ${label} » ? Cette action est irréversible.`,
-      )
-    ) {
-      return
-    }
+    const ok = await confirm({
+      title: 'Supprimer le compte',
+      message: `Supprimer définitivement le compte « ${label} » ? Cette action est irréversible.`,
+      confirmLabel: 'Supprimer',
+      danger: true,
+    })
+    if (!ok) return
     setActionError(null)
     setDeletingId(user.id)
     try {
