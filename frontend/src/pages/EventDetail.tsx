@@ -5,6 +5,7 @@ import { fr } from 'date-fns/locale'
 import { supabase } from '../lib/supabase'
 import { removeEventImage } from '../lib/eventImage'
 import { useIsBdeMember } from '../lib/useIsBdeMember'
+import { useConfirm } from '../contexts/ConfirmContext'
 
 type Event = {
   id: string
@@ -22,6 +23,7 @@ export default function EventDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { isBde } = useIsBdeMember()
+  const confirm = useConfirm()
   const [event, setEvent] = useState<Event | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
@@ -54,9 +56,12 @@ export default function EventDetail() {
 
   async function handleDelete() {
     if (!event) return
-    const ok = window.confirm(
-      `Supprimer « ${event.title} » ? Cette action est irréversible.`,
-    )
+    const ok = await confirm({
+      title: "Supprimer l'événement",
+      message: `Supprimer « ${event.title} » ? Cette action est irréversible.`,
+      confirmLabel: 'Supprimer',
+      danger: true,
+    })
     if (!ok) return
 
     setDeleting(true)

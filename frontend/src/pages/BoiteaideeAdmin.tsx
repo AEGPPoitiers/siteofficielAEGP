@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { FieldError } from '../components/ui/FieldError'
+import { useConfirm } from '../contexts/ConfirmContext'
 
 type IdeaStatus = 'nouvelle' | 'en_etude' | 'realisee' | 'refusee'
 
@@ -42,6 +43,7 @@ function formatRelative(iso: string): string {
 }
 
 export function BoiteaideeAdmin() {
+  const confirm = useConfirm()
   const [ideas, setIdeas] = useState<Idea[]>([])
   const [authorNames, setAuthorNames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
@@ -105,13 +107,13 @@ export function BoiteaideeAdmin() {
 
   async function deleteIdea(id: string) {
     const idea = ideas.find((i) => i.id === id)
-    if (
-      !window.confirm(
-        `Supprimer définitivement l'idée « ${idea?.title ?? ''} » ? Action irréversible.`,
-      )
-    ) {
-      return
-    }
+    const ok = await confirm({
+      title: "Supprimer l'idée",
+      message: `Supprimer définitivement l'idée « ${idea?.title ?? ''} » ? Action irréversible.`,
+      confirmLabel: 'Supprimer',
+      danger: true,
+    })
+    if (!ok) return
     const previous = ideas
     setIdeas((prev) => prev.filter((i) => i.id !== id))
     const { error: deleteError } = await supabase
