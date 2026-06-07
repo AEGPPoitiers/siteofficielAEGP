@@ -50,6 +50,24 @@ export async function createNews(
   return data as NewsItem
 }
 
+/** Met à jour une actualité (réservé BDE par la RLS). */
+export async function updateNews(
+  id: string,
+  values: { title: string; content: string },
+): Promise<NewsItem> {
+  const { data, error } = await supabase
+    .from('news')
+    .update({
+      title: values.title.trim(),
+      content: values.content.trim(),
+    })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data as NewsItem
+}
+
 /** Supprime une actualité (réservé BDE par la RLS). */
 export async function deleteNews(id: string): Promise<void> {
   const { error } = await supabase.from('news').delete().eq('id', id)

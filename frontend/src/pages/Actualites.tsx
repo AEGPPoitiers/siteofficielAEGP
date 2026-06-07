@@ -1,11 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Trash2 } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useIsBdeMember } from '../lib/useIsBdeMember'
 import { useConfirm } from '../contexts/ConfirmContext'
 import {
   listNews,
   createNews,
+  updateNews,
   deleteNews,
   formatNewsDate,
   NEWS_TITLE_MAX,
@@ -26,6 +27,7 @@ export default function Actualites() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -48,6 +50,11 @@ export default function Actualites() {
   function handleCreated(item: NewsItem) {
     setNews((prev) => [item, ...prev])
     setShowForm(false)
+  }
+
+  function handleUpdated(item: NewsItem) {
+    setNews((prev) => prev.map((n) => (n.id === item.id ? item : n)))
+    setEditingId(null)
   }
 
   async function handleDelete(id: string) {
@@ -91,7 +98,15 @@ export default function Actualites() {
       {error && <FieldError>{error}</FieldError>}
 
       {isBde && showForm && user && (
-        <NewsForm userId={user.id} onCreated={handleCreated} />
+        <NewsForm
+          submitLabel="Publier"
+          submittingLabel="Publication…"
+          onSubmit={async (values) => {
+            const item = await createNews(values, user.id)
+            handleCreated(item)
+          }}
+          onCancel={() => setShowForm(false)}
+        />
       )}
 
       {loading ? (
@@ -102,32 +117,58 @@ export default function Actualites() {
         </div>
       ) : (
         <div className="space-y-4">
-          {news.map((item) => (
-            <article
-              key={item.id}
-              className="bg-white rounded-lg shadow-sm border border-gray-200 p-5"
-            >
-              <div className="flex items-start justify-between gap-4 mb-1">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {item.title}
-                </h2>
-                {isBde && (
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(item.id)}
-                    aria-label="Supprimer l'actualité"
-                    className="shrink-0 p-1.5 text-red-600 hover:bg-red-50 rounded-md"
-                  >
-                    <Trash2 size={16} aria-hidden />
-                  </button>
-                )}
-              </div>
-              <p className="text-xs text-gray-500 mb-3">
-                {formatNewsDate(item.created_at)}
-              </p>
-              <p className="text-gray-700 whitespace-pre-wrap">{item.content}</p>
-            </article>
-          ))}
+          {news.map((item) =>
+            isBde && editingId === item.id ? (
+              <NewsForm
+                key={item.id}
+                initialValues={{ title: item.title, content: item.content }}
+                submitLabel="Enregistrer"
+                submittingLabel="Enregistrement…"
+                onSubmit={async (values) => {
+                  const updated = await updateNews(item.id, values)
+                  handleUpdated(updated)
+                }}
+                onCancel={() => setEditingId(null)}
+              />
+            ) : (
+              <article
+                key={item.id}
+                className="bg-white rounded-lg shadow-sm border border-gray-200 p-5"
+              >
+                <div className="flex items-start justify-between gap-4 mb-1">
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    {item.title}
+                  </h2>
+                  {isBde && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setEditingId(item.id)}
+                        aria-label="Modifier l'actualité"
+                        className="p-1.5 text-gray-600 hover:bg-gray-100 rounded-md"
+                      >
+                        <Pencil size={16} aria-hidden />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(item.id)}
+                        aria-label="Supprimer l'actualité"
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-md"
+                      >
+                        <Trash2 size={16} aria-hidden />
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mb-3">
+                  {formatNewsDate(item.created_at)}
+                </p>
+                <p className="text-gray-700 whitespace-pre-wrap">
+                  {item.content}
+                </p>
+              </article>
+            ),
+          )}
         </div>
       )}
     </div>
@@ -135,13 +176,22 @@ export default function Actualites() {
 }
 
 type NewsFormProps = {
-  userId: string
-  onCreated: (item: NewsItem) => void
+  initialValues?: { title: string; content: string }
+  submitLabel: string
+  submittingLabel: string
+  onSubmit: (values: { title: string; content: string }) => Promise<void>
+  onCancel: () => void
 }
 
-function NewsForm({ userId, onCreated }: NewsFormProps) {
-  const [title, setTitle] = useState('')
-  const [content, setContent] = useState('')
+function NewsForm({
+  initialValues,
+  submitLabel,
+  submittingLabel,
+  onSubmit,
+  onCancel,
+}: NewsFormProps) {
+  const [title, setTitle] = useState(initialValues?.title ?? '')
+  const [content, setContent] = useState(initialValues?.content ?? '')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -167,10 +217,9 @@ function NewsForm({ userId, onCreated }: NewsFormProps) {
     }
     setSubmitting(true)
     try {
-      const item = await createNews({ title, content }, userId)
-      onCreated(item)
+      await onSubmit({ title, content })
     } catch (e) {
-      setError(`Impossible de publier l'actualité : ${(e as Error).message}`)
+      setError(`Impossible d'enregistrer l'actualité : ${(e as Error).message}`)
     } finally {
       setSubmitting(false)
     }
@@ -205,9 +254,19 @@ function NewsForm({ userId, onCreated }: NewsFormProps) {
         placeholder="Rédigez l'actualité…"
         required
       />
-      <Button type="submit" variant="primary" loading={submitting}>
-        {submitting ? 'Publication…' : 'Publier'}
-      </Button>
+      <div className="flex gap-2">
+        <Button type="submit" variant="primary" loading={submitting}>
+          {submitting ? submittingLabel : submitLabel}
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={onCancel}
+          disabled={submitting}
+        >
+          Annuler
+        </Button>
+      </div>
     </form>
   )
 }
