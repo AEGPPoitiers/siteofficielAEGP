@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
 import afficheCafet from '../assets/affiche-cafet.jpeg'
+import NewsSection from '../components/NewsSection'
 
 export default function Home() {
   return (
@@ -41,6 +42,8 @@ export default function Home() {
           <p className="text-gray-600">Cours, TD, TP, et annales.</p>
         </Link>
       </section>
+
+      <NewsSection />
 
       <section className="text-center">
         <h2 className="text-2xl font-semibold text-gray-900 mb-4">

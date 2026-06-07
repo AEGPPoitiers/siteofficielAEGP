@@ -8,6 +8,7 @@ import EventEdit from './pages/EventEdit'
 import Tutorat from './pages/Tutorat'
 import Login from './pages/Login'
 import Boiteaidee from './pages/Boiteaidee'
+import Actualites from './pages/Actualites'
 import AdminUsers from './pages/AdminUsers'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { BdeProtectedRoute } from './components/BdeProtectedRoute'
@@ -21,6 +22,7 @@ export default function App() {
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
+        <Route path="/actualites" element={<Actualites />} />
         <Route path="/agenda" element={<Agenda />} />
         <Route
           path="/agenda/new"
