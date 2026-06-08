@@ -1,5 +1,12 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { Pencil, Trash2 } from 'lucide-react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from 'react'
+import { ExternalLink, Pencil, Trash2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useIsBdeMember } from '../lib/useIsBdeMember'
 import { useConfirm } from '../contexts/ConfirmContext'
@@ -9,14 +16,38 @@ import {
   updateNews,
   deleteNews,
   formatNewsDate,
+  normalizeLink,
   NEWS_TITLE_MAX,
   NEWS_CONTENT_MAX,
+  NEWS_LINK_LABEL_MAX,
   type NewsItem,
 } from '../lib/news'
+import { uploadNewsImage, removeNewsImage } from '../lib/newsImage'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Textarea } from '../components/ui/Textarea'
 import { FieldError } from '../components/ui/FieldError'
+
+const IMAGE_MAX_BYTES = 5 * 1024 * 1024
+
+type NewsFormPayload = {
+  title: string
+  content: string
+  link: string
+  linkLabel: string
+  imageFile: File | null
+  removeImage: boolean
+}
+
+/** Résout l'URL et son libellé : un label sans lien est ignoré. */
+function resolveLink(payload: NewsFormPayload): {
+  link_url: string | null
+  link_label: string | null
+} {
+  const link_url = normalizeLink(payload.link)
+  if (!link_url) return { link_url: null, link_label: null }
+  return { link_url, link_label: payload.linkLabel.trim() || null }
+}
 
 export default function Actualites() {
   const { user } = useAuth()
@@ -57,6 +88,65 @@ export default function Actualites() {
     setEditingId(null)
   }
 
+  async function handleCreate(payload: NewsFormPayload) {
+    if (!user) return
+    let image_url: string | null = null
+    if (payload.imageFile) {
+      const { url, error: uploadError } = await uploadNewsImage(
+        payload.imageFile,
+      )
+      if (uploadError || !url) {
+        throw new Error(`Image non uploadée : ${uploadError ?? 'erreur inconnue'}`)
+      }
+      image_url = url
+    }
+    const item = await createNews(
+      {
+        title: payload.title,
+        content: payload.content,
+        image_url,
+        ...resolveLink(payload),
+      },
+      user.id,
+    )
+    handleCreated(item)
+  }
+
+  async function handleEdit(item: NewsItem, payload: NewsFormPayload) {
+    let image_url: string | null = item.image_url
+    let oldImageToDelete: string | null = null
+
+    if (payload.removeImage) {
+      image_url = null
+      if (item.image_url) oldImageToDelete = item.image_url
+    } else if (payload.imageFile) {
+      const { url, error: uploadError } = await uploadNewsImage(
+        payload.imageFile,
+      )
+      if (uploadError || !url) {
+        throw new Error(`Image non uploadée : ${uploadError ?? 'erreur inconnue'}`)
+      }
+      image_url = url
+      if (item.image_url) oldImageToDelete = item.image_url
+    }
+
+    const updated = await updateNews(item.id, {
+      title: payload.title,
+      content: payload.content,
+      image_url,
+      ...resolveLink(payload),
+    })
+
+    if (oldImageToDelete) {
+      const { error: removeError } = await removeNewsImage(oldImageToDelete)
+      if (removeError) {
+        console.warn('[news-images] suppression échouée :', removeError)
+      }
+    }
+
+    handleUpdated(updated)
+  }
+
   async function handleDelete(id: string) {
     const item = news.find((n) => n.id === id)
     const ok = await confirm({
@@ -70,6 +160,12 @@ export default function Actualites() {
     setNews((prev) => prev.filter((n) => n.id !== id))
     try {
       await deleteNews(id)
+      if (item?.image_url) {
+        const { error: removeError } = await removeNewsImage(item.image_url)
+        if (removeError) {
+          console.warn('[news-images] suppression échouée :', removeError)
+        }
+      }
     } catch (e) {
       setNews(previous)
       setError(`Impossible de supprimer : ${(e as Error).message}`)
@@ -101,10 +197,7 @@ export default function Actualites() {
         <NewsForm
           submitLabel="Publier"
           submittingLabel="Publication…"
-          onSubmit={async (values) => {
-            const item = await createNews(values, user.id)
-            handleCreated(item)
-          }}
+          onSubmit={handleCreate}
           onCancel={() => setShowForm(false)}
         />
       )}
@@ -121,13 +214,16 @@ export default function Actualites() {
             isBde && editingId === item.id ? (
               <NewsForm
                 key={item.id}
-                initialValues={{ title: item.title, content: item.content }}
+                initialValues={{
+                  title: item.title,
+                  content: item.content,
+                  link: item.link_url ?? '',
+                  linkLabel: item.link_label ?? '',
+                }}
+                currentImageUrl={item.image_url}
                 submitLabel="Enregistrer"
                 submittingLabel="Enregistrement…"
-                onSubmit={async (values) => {
-                  const updated = await updateNews(item.id, values)
-                  handleUpdated(updated)
-                }}
+                onSubmit={(payload) => handleEdit(item, payload)}
                 onCancel={() => setEditingId(null)}
               />
             ) : (
@@ -135,6 +231,13 @@ export default function Actualites() {
                 key={item.id}
                 className="bg-white rounded-lg shadow-sm border border-gray-200 p-5"
               >
+                {item.image_url && (
+                  <img
+                    src={item.image_url}
+                    alt=""
+                    className="w-full max-h-72 object-cover rounded-md border border-gray-200 mb-4"
+                  />
+                )}
                 <div className="flex items-start justify-between gap-4 mb-1">
                   <h2 className="text-xl font-semibold text-gray-900">
                     {item.title}
@@ -166,6 +269,17 @@ export default function Actualites() {
                 <p className="text-gray-700 whitespace-pre-wrap">
                   {item.content}
                 </p>
+                {item.link_url && (
+                  <a
+                    href={item.link_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 mt-4 text-sm font-medium text-blue-700 hover:text-blue-900 hover:underline"
+                  >
+                    {item.link_label ?? 'En savoir plus'}
+                    <ExternalLink size={14} aria-hidden />
+                  </a>
+                )}
               </article>
             ),
           )}
@@ -176,15 +290,22 @@ export default function Actualites() {
 }
 
 type NewsFormProps = {
-  initialValues?: { title: string; content: string }
+  initialValues?: {
+    title: string
+    content: string
+    link: string
+    linkLabel: string
+  }
+  currentImageUrl?: string | null
   submitLabel: string
   submittingLabel: string
-  onSubmit: (values: { title: string; content: string }) => Promise<void>
+  onSubmit: (payload: NewsFormPayload) => Promise<void>
   onCancel: () => void
 }
 
 function NewsForm({
   initialValues,
+  currentImageUrl = null,
   submitLabel,
   submittingLabel,
   onSubmit,
@@ -192,8 +313,49 @@ function NewsForm({
 }: NewsFormProps) {
   const [title, setTitle] = useState(initialValues?.title ?? '')
   const [content, setContent] = useState(initialValues?.content ?? '')
+  const [link, setLink] = useState(initialValues?.link ?? '')
+  const [linkLabel, setLinkLabel] = useState(initialValues?.linkLabel ?? '')
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [removeImage, setRemoveImage] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const objectUrl = useMemo(
+    () => (imageFile ? URL.createObjectURL(imageFile) : null),
+    [imageFile],
+  )
+
+  useEffect(() => {
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [objectUrl])
+
+  const displayedImageUrl = objectUrl ?? (!removeImage ? currentImageUrl : null)
+
+  function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setError('Le fichier doit être une image.')
+      return
+    }
+    if (file.size > IMAGE_MAX_BYTES) {
+      setError("L'image ne doit pas dépasser 5 Mo.")
+      return
+    }
+    setError(null)
+    setImageFile(file)
+    setRemoveImage(false)
+  }
+
+  function handleRemoveImage() {
+    setImageFile(null)
+    setRemoveImage(true)
+  }
 
   function validate(): string | null {
     const t = title.trim()
@@ -217,7 +379,7 @@ function NewsForm({
     }
     setSubmitting(true)
     try {
-      await onSubmit({ title, content })
+      await onSubmit({ title, content, link, linkLabel, imageFile, removeImage })
     } catch (e) {
       setError(`Impossible d'enregistrer l'actualité : ${(e as Error).message}`)
     } finally {
@@ -254,6 +416,83 @@ function NewsForm({
         placeholder="Rédigez l'actualité…"
         required
       />
+
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Image (optionnel)
+        </label>
+        <p className="text-xs text-gray-500 mb-2">
+          Format image, 5 Mo max. Ratio paysage recommandé.
+        </p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileChange}
+          disabled={submitting}
+          className="hidden"
+          aria-hidden="true"
+        />
+        {displayedImageUrl ? (
+          <div className="space-y-2">
+            <img
+              src={displayedImageUrl}
+              alt=""
+              className="w-full max-h-64 object-cover rounded-md border border-gray-200"
+            />
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={submitting}
+              >
+                Changer l'image
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleRemoveImage}
+                disabled={submitting}
+              >
+                Supprimer l'image
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={submitting}
+          >
+            Ajouter une image
+          </Button>
+        )}
+      </div>
+
+      <Input
+        id="news-link"
+        label="Lien (optionnel)"
+        type="url"
+        value={link}
+        onChange={(e) => setLink(e.target.value)}
+        disabled={submitting}
+        placeholder="https://…"
+      />
+      {link.trim() !== '' && (
+        <Input
+          id="news-link-label"
+          label="Texte du lien (optionnel)"
+          type="text"
+          value={linkLabel}
+          onChange={(e) => setLinkLabel(e.target.value)}
+          maxLength={NEWS_LINK_LABEL_MAX}
+          disabled={submitting}
+          placeholder="En savoir plus"
+        />
+      )}
+
       <div className="flex gap-2">
         <Button type="submit" variant="primary" loading={submitting}>
           {submitting ? submittingLabel : submitLabel}
