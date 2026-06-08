@@ -6,12 +6,14 @@ export type NewsItem = {
   content: string
   image_url: string | null
   link_url: string | null
+  link_label: string | null
   created_by: string | null
   created_at: string
 }
 
 export const NEWS_TITLE_MAX = 200
 export const NEWS_CONTENT_MAX = 5000
+export const NEWS_LINK_LABEL_MAX = 80
 
 /** Valeurs persistées d'une actualité (hors champs gérés par la BDD). */
 export type NewsValues = {
@@ -19,6 +21,7 @@ export type NewsValues = {
   content: string
   image_url: string | null
   link_url: string | null
+  link_label: string | null
 }
 
 /**
@@ -65,6 +68,7 @@ export async function createNews(
       content: values.content.trim(),
       image_url: values.image_url,
       link_url: values.link_url,
+      link_label: values.link_label,
       created_by: userId,
     })
     .select()
@@ -85,6 +89,7 @@ export async function updateNews(
       content: values.content.trim(),
       image_url: values.image_url,
       link_url: values.link_url,
+      link_label: values.link_label,
     })
     .eq('id', id)
     .select()

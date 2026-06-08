@@ -19,6 +19,7 @@ import {
   normalizeLink,
   NEWS_TITLE_MAX,
   NEWS_CONTENT_MAX,
+  NEWS_LINK_LABEL_MAX,
   type NewsItem,
 } from '../lib/news'
 import { uploadNewsImage, removeNewsImage } from '../lib/newsImage'
@@ -33,8 +34,19 @@ type NewsFormPayload = {
   title: string
   content: string
   link: string
+  linkLabel: string
   imageFile: File | null
   removeImage: boolean
+}
+
+/** Résout l'URL et son libellé : un label sans lien est ignoré. */
+function resolveLink(payload: NewsFormPayload): {
+  link_url: string | null
+  link_label: string | null
+} {
+  const link_url = normalizeLink(payload.link)
+  if (!link_url) return { link_url: null, link_label: null }
+  return { link_url, link_label: payload.linkLabel.trim() || null }
 }
 
 export default function Actualites() {
@@ -93,7 +105,7 @@ export default function Actualites() {
         title: payload.title,
         content: payload.content,
         image_url,
-        link_url: normalizeLink(payload.link),
+        ...resolveLink(payload),
       },
       user.id,
     )
@@ -122,7 +134,7 @@ export default function Actualites() {
       title: payload.title,
       content: payload.content,
       image_url,
-      link_url: normalizeLink(payload.link),
+      ...resolveLink(payload),
     })
 
     if (oldImageToDelete) {
@@ -206,6 +218,7 @@ export default function Actualites() {
                   title: item.title,
                   content: item.content,
                   link: item.link_url ?? '',
+                  linkLabel: item.link_label ?? '',
                 }}
                 currentImageUrl={item.image_url}
                 submitLabel="Enregistrer"
@@ -263,7 +276,7 @@ export default function Actualites() {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 mt-4 text-sm font-medium text-blue-700 hover:text-blue-900 hover:underline"
                   >
-                    En savoir plus
+                    {item.link_label ?? 'En savoir plus'}
                     <ExternalLink size={14} aria-hidden />
                   </a>
                 )}
@@ -277,7 +290,12 @@ export default function Actualites() {
 }
 
 type NewsFormProps = {
-  initialValues?: { title: string; content: string; link: string }
+  initialValues?: {
+    title: string
+    content: string
+    link: string
+    linkLabel: string
+  }
   currentImageUrl?: string | null
   submitLabel: string
   submittingLabel: string
@@ -296,6 +314,7 @@ function NewsForm({
   const [title, setTitle] = useState(initialValues?.title ?? '')
   const [content, setContent] = useState(initialValues?.content ?? '')
   const [link, setLink] = useState(initialValues?.link ?? '')
+  const [linkLabel, setLinkLabel] = useState(initialValues?.linkLabel ?? '')
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [removeImage, setRemoveImage] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -360,7 +379,7 @@ function NewsForm({
     }
     setSubmitting(true)
     try {
-      await onSubmit({ title, content, link, imageFile, removeImage })
+      await onSubmit({ title, content, link, linkLabel, imageFile, removeImage })
     } catch (e) {
       setError(`Impossible d'enregistrer l'actualité : ${(e as Error).message}`)
     } finally {
@@ -461,6 +480,18 @@ function NewsForm({
         disabled={submitting}
         placeholder="https://…"
       />
+      {link.trim() !== '' && (
+        <Input
+          id="news-link-label"
+          label="Texte du lien (optionnel)"
+          type="text"
+          value={linkLabel}
+          onChange={(e) => setLinkLabel(e.target.value)}
+          maxLength={NEWS_LINK_LABEL_MAX}
+          disabled={submitting}
+          placeholder="En savoir plus"
+        />
+      )}
 
       <div className="flex gap-2">
         <Button type="submit" variant="primary" loading={submitting}>
