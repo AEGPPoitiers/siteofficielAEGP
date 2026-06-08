@@ -56,6 +56,13 @@ export default function NewsSection() {
               to="/actualites"
               className="block bg-white rounded-lg border border-gray-200 p-5 hover:border-black hover:shadow-md transition-all"
             >
+              {item.image_url && (
+                <img
+                  src={item.image_url}
+                  alt=""
+                  className="w-full max-h-48 object-cover rounded-md border border-gray-200 mb-3"
+                />
+              )}
               <h3 className="text-lg font-semibold text-gray-900">
                 {item.title}
               </h3>
