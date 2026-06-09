@@ -10,6 +10,7 @@ import Login from './pages/Login'
 import Boiteaidee from './pages/Boiteaidee'
 import Actualites from './pages/Actualites'
 import AdminUsers from './pages/AdminUsers'
+import AdminImport from './pages/AdminImport'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { BdeProtectedRoute } from './components/BdeProtectedRoute'
 import { AdminProtectedRoute } from './components/AdminProtectedRoute'
@@ -71,6 +72,14 @@ export default function App() {
           element={
             <AdminProtectedRoute>
               <AdminUsers />
+            </AdminProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/import"
+          element={
+            <AdminProtectedRoute>
+              <AdminImport />
             </AdminProtectedRoute>
           }
         />
