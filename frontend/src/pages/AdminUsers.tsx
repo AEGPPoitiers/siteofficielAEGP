@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router'
-import { Search, Shield, Trash2, UserPlus } from 'lucide-react'
+import { Search, Shield, Trash2, UserPlus, GraduationCap } from 'lucide-react'
 import {
   listUsers,
   updateUserRoles,
   deleteUser,
+  deletePromotion,
   type AdminUser,
   type EditableRoles,
 } from '../lib/adminUsers'
+import { PROMOTIONS, type Promotion } from '../lib/studentsImport'
 import { useConfirm } from '../contexts/ConfirmContext'
+
+type PromoFilter = 'all' | Promotion | 'none'
 
 export default function AdminUsers() {
   const confirm = useConfirm()
@@ -17,8 +21,10 @@ export default function AdminUsers() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [promoFilter, setPromoFilter] = useState<PromoFilter>('all')
   const [savingId, setSavingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -44,13 +50,31 @@ export default function AdminUsers() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    if (!q) return users
-    return users.filter(
-      (u) =>
+    return users.filter((u) => {
+      if (promoFilter === 'none' && u.promotion) return false
+      if (
+        promoFilter !== 'all' &&
+        promoFilter !== 'none' &&
+        u.promotion !== promoFilter
+      )
+        return false
+      if (!q) return true
+      return (
         (u.email ?? '').toLowerCase().includes(q) ||
-        (u.full_name ?? '').toLowerCase().includes(q),
-    )
-  }, [users, search])
+        (u.full_name ?? '').toLowerCase().includes(q)
+      )
+    })
+  }, [users, search, promoFilter])
+
+  // Décompte par promotion (pour les pastilles de filtre).
+  const promoCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const u of users) {
+      const key = u.promotion ?? 'none'
+      counts[key] = (counts[key] ?? 0) + 1
+    }
+    return counts
+  }, [users])
 
   async function toggle(user: AdminUser, field: keyof EditableRoles) {
     const next = !user[field]
@@ -110,6 +134,42 @@ export default function AdminUsers() {
     }
   }
 
+  async function handleDeletePromotion(promo: Promotion) {
+    // On ne supprime que les non-admins (le backend l'impose aussi).
+    const count = users.filter(
+      (u) => u.promotion === promo && !u.is_admin,
+    ).length
+    if (count === 0) return
+    const ok = await confirm({
+      title: `Supprimer la promotion ${promo}`,
+      message: `Supprimer définitivement ${count} compte(s) de la promotion ${promo} ? À faire pour les diplômés en fin d'année. Cette action est irréversible.`,
+      confirmLabel: `Supprimer ${count} compte(s)`,
+      danger: true,
+    })
+    if (!ok) return
+    setActionError(null)
+    setBulkDeleting(true)
+    try {
+      const res = await deletePromotion(promo)
+      // Recharge la liste pour refléter l'état réel (succès partiels possibles).
+      const data = await listUsers()
+      setUsers(data)
+      if (res.errors.length > 0) {
+        setActionError(
+          `${res.deleted} compte(s) supprimé(s), ${res.errors.length} échec(s).`,
+        )
+      }
+    } catch (e) {
+      setActionError(
+        e instanceof Error
+          ? e.message
+          : 'Échec de la suppression de la promotion.',
+      )
+    } finally {
+      setBulkDeleting(false)
+    }
+  }
+
   return (
     <div className="space-y-4 max-w-3xl mx-auto">
       <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -157,6 +217,40 @@ export default function AdminUsers() {
         />
       </div>
 
+      <div className="flex items-center gap-2 flex-wrap">
+        <FilterPill
+          label="Toutes"
+          active={promoFilter === 'all'}
+          onClick={() => setPromoFilter('all')}
+        />
+        {PROMOTIONS.map((p) => (
+          <FilterPill
+            key={p}
+            label={`${p} (${promoCounts[p] ?? 0})`}
+            active={promoFilter === p}
+            onClick={() => setPromoFilter(p)}
+          />
+        ))}
+        <FilterPill
+          label={`Sans promo (${promoCounts['none'] ?? 0})`}
+          active={promoFilter === 'none'}
+          onClick={() => setPromoFilter('none')}
+        />
+        {promoFilter !== 'all' && promoFilter !== 'none' && (
+          <button
+            type="button"
+            onClick={() => handleDeletePromotion(promoFilter)}
+            disabled={bulkDeleting || (promoCounts[promoFilter] ?? 0) === 0}
+            className="ml-auto inline-flex items-center gap-2 text-sm font-medium text-red-700 border border-red-300 rounded-md px-3 py-1.5 hover:bg-red-50 disabled:opacity-50"
+          >
+            <GraduationCap size={16} aria-hidden />
+            {bulkDeleting
+              ? 'Suppression…'
+              : `Supprimer la promotion ${promoFilter}`}
+          </button>
+        )}
+      </div>
+
       {loading ? (
         <div className="text-center py-12 text-gray-500">Chargement…</div>
       ) : filtered.length === 0 ? (
@@ -177,6 +271,11 @@ export default function AdminUsers() {
                   <span className="font-medium text-gray-900 truncate">
                     {u.full_name || u.email || '(sans nom)'}
                   </span>
+                  {u.promotion && (
+                    <span className="inline-flex items-center shrink-0 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      {u.promotion}
+                    </span>
+                  )}
                   {u.is_admin && (
                     <span className="inline-flex items-center gap-1 shrink-0 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-900 text-white">
                       <Shield size={12} aria-hidden />
@@ -233,6 +332,31 @@ function RolePill({
       disabled={disabled}
       aria-pressed={active}
       className={`px-3 py-1.5 rounded-md text-sm font-medium border transition-colors disabled:opacity-50 ${
+        active
+          ? 'bg-black text-white border-black'
+          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+      }`}
+    >
+      {label}
+    </button>
+  )
+}
+
+function FilterPill({
+  label,
+  active,
+  onClick,
+}: {
+  label: string
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`px-3 py-1 rounded-full text-sm font-medium border transition-colors ${
         active
           ? 'bg-black text-white border-black'
           : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'

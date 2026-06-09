@@ -3,9 +3,17 @@
 // ce qui sera importé (valides), rejeté (invalides) ou ignoré (doublons internes).
 //
 // Format attendu : en-tête obligatoire avec au minimum une colonne `email`,
-// colonnes `prenom`/`nom` optionnelles (ordre libre). Séparateur `,` ou `;`.
+// colonnes `prenom`/`nom`/`promotion` optionnelles (ordre libre). Séparateur `,` ou `;`.
 
-export type ParsedStudent = { email: string; full_name: string }
+export type Promotion = 'L3' | 'M1' | 'M2'
+export const PROMOTIONS: readonly Promotion[] = ['L3', 'M1', 'M2']
+const PROMOTION_SET = new Set<string>(PROMOTIONS)
+
+export type ParsedStudent = {
+  email: string
+  full_name: string
+  promotion: Promotion | null
+}
 export type ParseIssue = { line: number; raw: string; reason: string }
 
 export type ParseResult = {
@@ -47,6 +55,7 @@ export function parseStudentsCsv(text: string): ParseResult {
   const idxEmail = header.indexOf('email')
   const idxPrenom = header.indexOf('prenom')
   const idxNom = header.indexOf('nom')
+  const idxPromotion = header.indexOf('promotion')
 
   if (idxEmail === -1) {
     invalid.push({
@@ -75,7 +84,14 @@ export function parseStudentsCsv(text: string): ParseResult {
     const prenom = idxPrenom >= 0 ? (cols[idxPrenom] ?? '') : ''
     const nom = idxNom >= 0 ? (cols[idxNom] ?? '') : ''
     const full_name = `${prenom} ${nom}`.trim()
-    valid.push({ email, full_name })
+
+    const promoRaw =
+      idxPromotion >= 0 ? (cols[idxPromotion] ?? '').toUpperCase() : ''
+    const promotion = PROMOTION_SET.has(promoRaw)
+      ? (promoRaw as Promotion)
+      : null
+
+    valid.push({ email, full_name, promotion })
   }
 
   return { valid, invalid, duplicates }

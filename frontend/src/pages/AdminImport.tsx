@@ -45,12 +45,18 @@ export default function AdminImport() {
     setRunning(true)
     setError(null)
     setDone(0)
-    const agg: ImportResult = { invited: [], skipped: [], errors: [] }
+    const agg: ImportResult = {
+      invited: [],
+      updated: [],
+      skipped: [],
+      errors: [],
+    }
     try {
       for (let i = 0; i < parsed.valid.length; i += BATCH_SIZE) {
         const batch = parsed.valid.slice(i, i + BATCH_SIZE)
         const r = await importStudents(batch)
         agg.invited.push(...r.invited)
+        agg.updated.push(...r.updated)
         agg.skipped.push(...r.skipped)
         agg.errors.push(...r.errors)
         setDone(Math.min(i + batch.length, parsed.valid.length))
@@ -69,6 +75,7 @@ export default function AdminImport() {
 
   const total = parsed?.valid.length ?? 0
   const pct = total > 0 ? Math.round((done / total) * 100) : 0
+  const noPromo = parsed?.valid.filter((s) => !s.promotion).length ?? 0
 
   return (
     <div className="space-y-5 max-w-3xl mx-auto">
@@ -88,8 +95,10 @@ export default function AdminImport() {
           <code className="text-sm bg-gray-100 px-1 rounded">email</code> et, si
           possible,{' '}
           <code className="text-sm bg-gray-100 px-1 rounded">prenom</code> /{' '}
-          <code className="text-sm bg-gray-100 px-1 rounded">nom</code>. Chaque
-          adresse reçoit une invitation à définir son mot de passe.
+          <code className="text-sm bg-gray-100 px-1 rounded">nom</code> /{' '}
+          <code className="text-sm bg-gray-100 px-1 rounded">promotion</code>{' '}
+          (L3, M1 ou M2). Chaque adresse reçoit une invitation à définir son mot
+          de passe ; un compte déjà inscrit voit sa promotion mise à jour.
         </p>
       </div>
 
@@ -117,7 +126,9 @@ export default function AdminImport() {
           value={text}
           onChange={(e) => handleText(e.target.value)}
           rows={8}
-          placeholder={'email,prenom,nom\njean.dupont@etu.fr,Jean,Dupont'}
+          placeholder={
+            'email,prenom,nom,promotion\njean.dupont@etu.fr,Jean,Dupont,L3'
+          }
           className="w-full font-mono text-sm border border-gray-300 rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-black"
         />
       </div>
@@ -128,6 +139,9 @@ export default function AdminImport() {
             <Stat label="à inviter" value={parsed.valid.length} tone="ok" />
             <Stat label="ignorés (doublons)" value={parsed.duplicates.length} />
             <Stat label="invalides" value={parsed.invalid.length} tone="warn" />
+            {noPromo > 0 && (
+              <Stat label="sans promotion" value={noPromo} tone="warn" />
+            )}
           </div>
 
           {(parsed.invalid.length > 0 || parsed.duplicates.length > 0) && (
@@ -183,6 +197,7 @@ export default function AdminImport() {
           </div>
           <div className="flex flex-wrap gap-2 text-sm">
             <Stat label="invités" value={result.invited.length} tone="ok" />
+            <Stat label="promotions à jour" value={result.updated.length} tone="ok" />
             <Stat label="déjà inscrits" value={result.skipped.length} />
             <Stat label="échecs" value={result.errors.length} tone="warn" />
           </div>
