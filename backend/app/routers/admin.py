@@ -25,6 +25,7 @@ class AdminUser(BaseModel):
     id: str
     email: str | None = None
     full_name: str | None = None
+    promotion: str | None = None
     is_bde_member: bool = False
     is_admin: bool = False
     is_tutor: bool = False
@@ -38,6 +39,7 @@ class UpdateRolesIn(BaseModel):
 class ImportStudentIn(BaseModel):
     email: str
     full_name: str | None = None
+    promotion: str | None = None
 
 
 class ImportRequestIn(BaseModel):
@@ -51,12 +53,26 @@ class ImportItemError(BaseModel):
 
 class ImportResult(BaseModel):
     invited: list[str]
-    skipped: list[str]  # déjà inscrits — ignorés (import ré-exécutable)
+    updated: list[str]  # déjà inscrits dont la promotion a été mise à jour (scénario A)
+    skipped: list[str]  # déjà inscrits, rien à mettre à jour
     errors: list[ImportItemError]
+
+
+class BulkError(BaseModel):
+    id: str
+    message: str
+
+
+class DeletePromotionResult(BaseModel):
+    deleted: int
+    errors: list[BulkError]
 
 
 # Borne par requête : le front découpe l'import en lots et agrège les rapports.
 _IMPORT_MAX = 100
+
+# Promotions reconnues (niveau, mis à jour chaque rentrée via ré-import).
+_PROMOTIONS = {"L3", "M1", "M2"}
 
 
 def _service_headers() -> dict[str, str]:
@@ -114,13 +130,21 @@ async def _email_by_id(client: httpx.AsyncClient) -> dict[str, str]:
         page += 1
 
 
+async def _email_to_id(client: httpx.AsyncClient) -> dict[str, str]:
+    """Mappe email (minuscule) → user_id, pour retrouver un compte existant."""
+    by_id = await _email_by_id(client)
+    return {email.lower(): uid for uid, email in by_id.items() if email}
+
+
 @router.get("/users", response_model=list[AdminUser])
 async def list_users(_: str = Depends(require_admin)) -> list[AdminUser]:
     base = get_settings().supabase_url
     async with httpx.AsyncClient(timeout=20) as client:
         prof_resp = await client.get(
             f"{base}/rest/v1/profiles",
-            params={"select": "id,full_name,is_bde_member,is_admin,is_tutor"},
+            params={
+                "select": "id,full_name,promotion,is_bde_member,is_admin,is_tutor"
+            },
             headers=_service_headers(),
         )
         if prof_resp.status_code != 200:
@@ -135,6 +159,7 @@ async def list_users(_: str = Depends(require_admin)) -> list[AdminUser]:
             id=p["id"],
             email=emails.get(p["id"]),
             full_name=p.get("full_name"),
+            promotion=p.get("promotion"),
             is_bde_member=bool(p.get("is_bde_member")),
             is_admin=bool(p.get("is_admin")),
             is_tutor=bool(p.get("is_tutor")),
@@ -197,8 +222,10 @@ async def import_students(
     `data.full_name` est repris par le trigger `handle_new_user` → écrit dans
     `profiles.full_name` (ce qui fait afficher le nom de l'auteur des idées).
 
-    Un email déjà inscrit est « skipped » (pas une erreur) → l'import est
-    ré-exécutable sans créer de doublon.
+    Scénario A (ré-import annuel) : un email déjà inscrit n'est PAS une simple
+    erreur — si une promotion valide est fournie, on met à jour `profiles.promotion`
+    (« updated ») pour refléter la montée de niveau (L3→M1→M2). Sans promotion à
+    écrire, il est « skipped ». L'import reste ainsi ré-exécutable sans doublon.
     """
     if not payload.students:
         raise HTTPException(
@@ -212,18 +239,30 @@ async def import_students(
 
     base = get_settings().supabase_url
     invited: list[str] = []
+    updated: list[str] = []
     skipped: list[str] = []
     errors: list[ImportItemError] = []
+    # Map email→id construite paresseusement (seulement si on rencontre un existant).
+    email_to_id: dict[str, str] | None = None
 
     async with httpx.AsyncClient(timeout=30) as client:
         for student in payload.students:
             email = student.email.strip().lower()
             if not email:
                 continue
-            body: dict = {"email": email}
+            promotion = (student.promotion or "").strip().upper()
+            promotion = promotion if promotion in _PROMOTIONS else ""
+
+            data: dict = {}
             full_name = (student.full_name or "").strip()
             if full_name:
-                body["data"] = {"full_name": full_name}
+                data["full_name"] = full_name
+            if promotion:
+                data["promotion"] = promotion
+            body: dict = {"email": email}
+            if data:
+                body["data"] = data
+
             try:
                 resp = await client.post(
                     f"{base}/auth/v1/invite",
@@ -238,16 +277,48 @@ async def import_students(
                     ImportItemError(email=email, message="Erreur réseau Supabase")
                 )
                 continue
+
             if resp.status_code in (200, 201):
                 invited.append(email)
-            elif _is_already_registered(resp):
-                skipped.append(email)
-            else:
+                continue
+            if not _is_already_registered(resp):
                 errors.append(
                     ImportItemError(email=email, message=_gotrue_message(resp))
                 )
+                continue
 
-    return ImportResult(invited=invited, skipped=skipped, errors=errors)
+            # Compte déjà inscrit : on met à jour sa promotion si fournie.
+            if not promotion:
+                skipped.append(email)
+                continue
+            if email_to_id is None:
+                email_to_id = await _email_to_id(client)
+            uid = email_to_id.get(email)
+            if not uid:
+                skipped.append(email)
+                continue
+            patch = await client.patch(
+                f"{base}/rest/v1/profiles",
+                params={"id": f"eq.{uid}"},
+                headers={
+                    **_service_headers(),
+                    "Content-Type": "application/json",
+                    "Prefer": "return=minimal",
+                },
+                json={"promotion": promotion},
+            )
+            if patch.status_code in (200, 204):
+                updated.append(email)
+            else:
+                errors.append(
+                    ImportItemError(
+                        email=email, message="Échec mise à jour promotion"
+                    )
+                )
+
+    return ImportResult(
+        invited=invited, updated=updated, skipped=skipped, errors=errors
+    )
 
 
 @router.delete("/users/{user_id}", status_code=204)
@@ -282,3 +353,58 @@ async def delete_user(
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY, "Échec de la suppression du compte"
         )
+
+
+@router.delete(
+    "/users/by-promotion/{promotion}", response_model=DeletePromotionResult
+)
+async def delete_promotion(
+    promotion: str,
+    _: str = Depends(require_admin),
+) -> DeletePromotionResult:
+    """Supprime en masse les comptes d'une promotion (diplômés en fin d'année).
+
+    Les comptes admin sont exclus (garde-fou). À utiliser pour vider la promotion
+    sortante (ex. les M2) une fois l'année terminée.
+    """
+    promo = promotion.strip().upper()
+    if promo not in _PROMOTIONS:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, f"Promotion inconnue : {promotion}"
+        )
+
+    base = get_settings().supabase_url
+    deleted = 0
+    errors: list[BulkError] = []
+    async with httpx.AsyncClient(timeout=30) as client:
+        prof = await client.get(
+            f"{base}/rest/v1/profiles",
+            params={
+                "promotion": f"eq.{promo}",
+                "is_admin": "eq.false",
+                "select": "id",
+            },
+            headers=_service_headers(),
+        )
+        if prof.status_code != 200:
+            raise HTTPException(
+                status.HTTP_502_BAD_GATEWAY, "Échec du lookup profils"
+            )
+        ids = [row["id"] for row in prof.json() if row.get("id")]
+        for uid in ids:
+            try:
+                resp = await client.delete(
+                    f"{base}/auth/v1/admin/users/{uid}",
+                    headers=_service_headers(),
+                )
+            except httpx.HTTPError:
+                errors.append(BulkError(id=uid, message="Erreur réseau Supabase"))
+                continue
+            if resp.status_code in (200, 204):
+                deleted += 1
+            else:
+                errors.append(
+                    BulkError(id=uid, message=_gotrue_message(resp))
+                )
+
+    return DeletePromotionResult(deleted=deleted, errors=errors)
