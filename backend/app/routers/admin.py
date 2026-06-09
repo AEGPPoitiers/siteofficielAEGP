@@ -35,9 +35,58 @@ class UpdateRolesIn(BaseModel):
     is_tutor: bool | None = None
 
 
+class ImportStudentIn(BaseModel):
+    email: str
+    full_name: str | None = None
+
+
+class ImportRequestIn(BaseModel):
+    students: list[ImportStudentIn]
+
+
+class ImportItemError(BaseModel):
+    email: str
+    message: str
+
+
+class ImportResult(BaseModel):
+    invited: list[str]
+    skipped: list[str]  # déjà inscrits — ignorés (import ré-exécutable)
+    errors: list[ImportItemError]
+
+
+# Borne par requête : le front découpe l'import en lots et agrège les rapports.
+_IMPORT_MAX = 100
+
+
 def _service_headers() -> dict[str, str]:
     key = get_settings().supabase_service_role_key
     return {"apikey": key, "Authorization": f"Bearer {key}"}
+
+
+def _gotrue_message(resp: httpx.Response) -> str:
+    """Extrait un message d'erreur lisible d'une réponse GoTrue."""
+    try:
+        data = resp.json()
+    except ValueError:
+        return resp.text or f"HTTP {resp.status_code}"
+    if isinstance(data, dict):
+        return (
+            data.get("msg")
+            or data.get("error_description")
+            or data.get("message")
+            or data.get("error")
+            or f"HTTP {resp.status_code}"
+        )
+    return f"HTTP {resp.status_code}"
+
+
+def _is_already_registered(resp: httpx.Response) -> bool:
+    """True si l'invite échoue parce que l'email est déjà inscrit (→ skip)."""
+    if resp.status_code not in (400, 422):
+        return False
+    msg = _gotrue_message(resp).lower()
+    return "registered" in msg or "already" in msg or "exists" in msg
 
 
 async def _email_by_id(client: httpx.AsyncClient) -> dict[str, str]:
@@ -134,6 +183,71 @@ async def update_user_roles(
         is_admin=bool(p.get("is_admin")),
         is_tutor=bool(p.get("is_tutor")),
     )
+
+
+@router.post("/users/import", response_model=ImportResult)
+async def import_students(
+    payload: ImportRequestIn,
+    _: str = Depends(require_admin),
+) -> ImportResult:
+    """Invite en masse un lot d'étudiants (le front découpe et agrège).
+
+    Pour chaque entrée : POST /auth/v1/invite — crée le compte dans auth.users ET
+    envoie l'email d'invitation via le SMTP custom configuré dans Supabase. Le
+    `data.full_name` est repris par le trigger `handle_new_user` → écrit dans
+    `profiles.full_name` (ce qui fait afficher le nom de l'auteur des idées).
+
+    Un email déjà inscrit est « skipped » (pas une erreur) → l'import est
+    ré-exécutable sans créer de doublon.
+    """
+    if not payload.students:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Aucun étudiant à importer"
+        )
+    if len(payload.students) > _IMPORT_MAX:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"Lot trop grand (max {_IMPORT_MAX}). Découpez l'import.",
+        )
+
+    base = get_settings().supabase_url
+    invited: list[str] = []
+    skipped: list[str] = []
+    errors: list[ImportItemError] = []
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        for student in payload.students:
+            email = student.email.strip().lower()
+            if not email:
+                continue
+            body: dict = {"email": email}
+            full_name = (student.full_name or "").strip()
+            if full_name:
+                body["data"] = {"full_name": full_name}
+            try:
+                resp = await client.post(
+                    f"{base}/auth/v1/invite",
+                    headers={
+                        **_service_headers(),
+                        "Content-Type": "application/json",
+                    },
+                    json=body,
+                )
+            except httpx.HTTPError:
+                errors.append(
+                    ImportItemError(email=email, message="Erreur réseau Supabase")
+                )
+                continue
+            if resp.status_code in (200, 201):
+                invited.append(email)
+            elif _is_already_registered(resp):
+                skipped.append(email)
+            else:
+                errors.append(
+                    ImportItemError(email=email, message=_gotrue_message(resp))
+                )
+
+    return ImportResult(invited=invited, skipped=skipped, errors=errors)
 
 
 @router.delete("/users/{user_id}", status_code=204)

@@ -1,4 +1,4 @@
-import { apiGet, apiPatch, apiDelete } from './api'
+import { apiGet, apiPatch, apiDelete, apiPost } from './api'
 
 export type AdminUser = {
   id: string
@@ -29,4 +29,22 @@ export function updateUserRoles(
 /** Supprime définitivement un compte (le profil part en cascade). */
 export function deleteUser(id: string): Promise<unknown> {
   return apiDelete(`/admin/users/${id}`)
+}
+
+export type ImportStudent = { email: string; full_name: string }
+
+export type ImportResult = {
+  invited: string[]
+  skipped: string[] // déjà inscrits — ignorés
+  errors: { email: string; message: string }[]
+}
+
+/**
+ * Invite un lot d'étudiants (envoie un vrai email d'invitation à chacun).
+ * À appeler par lots côté UI : le backend borne la taille d'un lot.
+ */
+export function importStudents(
+  students: ImportStudent[],
+): Promise<ImportResult> {
+  return apiPost<ImportResult>('/admin/users/import', { students })
 }

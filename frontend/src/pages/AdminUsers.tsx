@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Search, Shield, Trash2 } from 'lucide-react'
+import { Link } from 'react-router'
+import { Search, Shield, Trash2, UserPlus } from 'lucide-react'
 import {
   listUsers,
   updateUserRoles,
@@ -111,13 +112,22 @@ export default function AdminUsers() {
 
   return (
     <div className="space-y-4 max-w-3xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">
-          Administration — membres
-        </h1>
-        <p className="text-gray-600 mt-1">
-          Gère le rôle tuteur des comptes et supprime les comptes obsolètes.
-        </p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Administration — membres
+          </h1>
+          <p className="text-gray-600 mt-1">
+            Gère le rôle tuteur des comptes et supprime les comptes obsolètes.
+          </p>
+        </div>
+        <Link
+          to="/admin/import"
+          className="inline-flex items-center gap-2 shrink-0 bg-black text-white font-medium rounded-md px-4 py-2 hover:bg-gray-800"
+        >
+          <UserPlus size={16} aria-hidden />
+          Importer des étudiants
+        </Link>
       </div>
 
       {loadError && (
