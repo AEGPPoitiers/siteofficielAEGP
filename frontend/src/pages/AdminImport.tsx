@@ -1,8 +1,11 @@
-import { useState, type ChangeEvent } from 'react'
+import { useMemo, useState, type ChangeEvent } from 'react'
 import { Link } from 'react-router'
 import { ArrowLeft, Upload, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { importStudents, type ImportResult } from '../lib/adminUsers'
-import { parseStudentsCsv, type ParseResult } from '../lib/studentsImport'
+import {
+  parseStudentsCsv,
+  defaultRentreeYear,
+} from '../lib/studentsImport'
 import { useConfirm } from '../contexts/ConfirmContext'
 
 // On envoie les invitations par petits lots séquentiels : feedback de progression,
@@ -12,18 +15,23 @@ const BATCH_SIZE = 20
 export default function AdminImport() {
   const confirm = useConfirm()
   const [text, setText] = useState('')
-  const [parsed, setParsed] = useState<ParseResult | null>(null)
+  const [rentreeYear, setRentreeYear] = useState(defaultRentreeYear())
   const [running, setRunning] = useState(false)
   const [done, setDone] = useState(0)
   const [result, setResult] = useState<ImportResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // L'aperçu se recalcule dès que le CSV ou l'année de rentrée change.
+  const parsed = useMemo(
+    () => (text.trim() ? parseStudentsCsv(text, rentreeYear) : null),
+    [text, rentreeYear],
+  )
 
   function handleText(value: string) {
     setText(value)
     setResult(null)
     setError(null)
     setDone(0)
-    setParsed(value.trim() ? parseStudentsCsv(value) : null)
   }
 
   async function handleFile(e: ChangeEvent<HTMLInputElement>) {
@@ -75,7 +83,6 @@ export default function AdminImport() {
 
   const total = parsed?.valid.length ?? 0
   const pct = total > 0 ? Math.round((done / total) * 100) : 0
-  const noPromo = parsed?.valid.filter((s) => !s.promotion).length ?? 0
 
   return (
     <div className="space-y-5 max-w-3xl mx-auto">
@@ -91,15 +98,36 @@ export default function AdminImport() {
           Importer des étudiants
         </h1>
         <p className="text-gray-600 mt-1">
-          Colle un CSV (ou choisis un fichier) avec une colonne{' '}
-          <code className="text-sm bg-gray-100 px-1 rounded">email</code> et, si
-          possible,{' '}
-          <code className="text-sm bg-gray-100 px-1 rounded">prenom</code> /{' '}
-          <code className="text-sm bg-gray-100 px-1 rounded">nom</code> /{' '}
-          <code className="text-sm bg-gray-100 px-1 rounded">promotion</code>{' '}
-          (L3, M1 ou M2). Chaque adresse reçoit une invitation à définir son mot
+          Colle le CSV exporté du formulaire (ou choisis un fichier). Les
+          colonnes <code className="text-sm bg-gray-100 px-1 rounded">Nom</code>,{' '}
+          <code className="text-sm bg-gray-100 px-1 rounded">Prénom</code>,{' '}
+          <code className="text-sm bg-gray-100 px-1 rounded">
+            Promotion d'appartenance
+          </code>{' '}
+          (année de diplôme) et l'adresse mail (dernière colonne) sont reconnues
+          automatiquement. Chaque adresse reçoit une invitation à définir son mot
           de passe ; un compte déjà inscrit voit sa promotion mise à jour.
         </p>
+      </div>
+
+      <div className="flex items-center gap-3 flex-wrap bg-white border border-gray-200 rounded-md px-3 py-2">
+        <label
+          htmlFor="rentree-year"
+          className="text-sm font-medium text-gray-700"
+        >
+          Année de la rentrée
+        </label>
+        <input
+          id="rentree-year"
+          type="number"
+          value={rentreeYear}
+          onChange={(e) => setRentreeYear(Number(e.target.value))}
+          className="w-24 border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+        />
+        <span className="text-sm text-gray-500">
+          M2 = diplôme {rentreeYear + 1} · M1 = {rentreeYear + 2} · L3 ={' '}
+          {rentreeYear + 3}
+        </span>
       </div>
 
       <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-md px-3 py-2 text-sm flex gap-2">
@@ -127,7 +155,7 @@ export default function AdminImport() {
           onChange={(e) => handleText(e.target.value)}
           rows={8}
           placeholder={
-            'email,prenom,nom,promotion\njean.dupont@etu.fr,Jean,Dupont,L3'
+            "Horodateur,Adresse e-mail,Promotion d'appartenance,Nom,Prénom,Adresse email\n…,…,GPhy-2029,Dupont,Jean,jean.dupont@etu.fr"
           }
           className="w-full font-mono text-sm border border-gray-300 rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-black"
         />
@@ -139,18 +167,28 @@ export default function AdminImport() {
             <Stat label="à inviter" value={parsed.valid.length} tone="ok" />
             <Stat label="ignorés (doublons)" value={parsed.duplicates.length} />
             <Stat label="invalides" value={parsed.invalid.length} tone="warn" />
-            {noPromo > 0 && (
-              <Stat label="sans promotion" value={noPromo} tone="warn" />
+            {parsed.excluded.length > 0 && (
+              <Stat
+                label="hors L3/M1/M2"
+                value={parsed.excluded.length}
+                tone="warn"
+              />
             )}
           </div>
 
-          {(parsed.invalid.length > 0 || parsed.duplicates.length > 0) && (
+          {(parsed.invalid.length > 0 ||
+            parsed.duplicates.length > 0 ||
+            parsed.excluded.length > 0) && (
             <details className="text-sm bg-gray-50 border border-gray-200 rounded-md p-3">
               <summary className="cursor-pointer font-medium text-gray-700">
                 Voir les lignes non importées
               </summary>
               <ul className="mt-2 space-y-1 text-gray-600">
-                {[...parsed.invalid, ...parsed.duplicates].map((issue, i) => (
+                {[
+                  ...parsed.invalid,
+                  ...parsed.duplicates,
+                  ...parsed.excluded,
+                ].map((issue, i) => (
                   <li key={i}>
                     <span className="text-gray-400">L.{issue.line}</span>{' '}
                     {issue.reason} —{' '}
