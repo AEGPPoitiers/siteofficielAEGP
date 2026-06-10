@@ -285,6 +285,26 @@ async def update_user_info(
                     status.HTTP_400_BAD_REQUEST, _gotrue_message(resp)
                 )
 
+            # L'adresse de connexion a changé → on révoque les sessions de
+            # l'utilisateur pour le forcer à se reconnecter avec la nouvelle
+            # adresse (le refresh token est tué tout de suite ; un access token
+            # déjà émis reste valide jusqu'à expiration). Voir la migration
+            # 0014 : RPC `security definer` car PostgREST n'expose pas `auth`.
+            revoke = await client.post(
+                f"{base}/rest/v1/rpc/admin_revoke_user_sessions",
+                headers={
+                    **_service_headers(),
+                    "Content-Type": "application/json",
+                },
+                json={"uid": user_id},
+            )
+            if revoke.status_code not in (200, 204):
+                raise HTTPException(
+                    status.HTTP_502_BAD_GATEWAY,
+                    "Email modifié mais échec de la révocation des sessions ; "
+                    "réessayez pour forcer la déconnexion.",
+                )
+
         # 2) profiles : full_name / promotion
         profile_updates: dict = {}
         if "full_name" in fields:

@@ -684,7 +684,8 @@ function EditUserForm({
           Annuler
         </Button>
         <span className="text-xs text-gray-500">
-          Changer l'email modifie l'adresse de connexion du compte.
+          Changer l'email modifie l'adresse de connexion et déconnecte le
+          compte (reconnexion requise avec la nouvelle adresse).
         </span>
       </div>
     </form>
