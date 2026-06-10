@@ -6,21 +6,24 @@ import PollWidget from '../components/PollWidget'
 
 export default function Home() {
   return (
-    <div className="grid lg:grid-cols-3 gap-8">
-      {/* Sondage : haut de la colonne principale (desktop) ; premier sur mobile.
-          PollWidget rend `null` s'il n'y a rien à afficher → pas de cellule vide. */}
-      <PollWidget className="order-1 lg:col-span-2" />
+    <div className="grid lg:grid-cols-3 lg:items-start gap-8">
+      {/* Colonne principale : sondage puis actualités, empilés et indépendants
+          de la hauteur du menu cafét. `contents` sur mobile pour que le cafét
+          puisse s'intercaler entre les deux (ordre sondage → cafét → actualités) ;
+          bloc normal sur desktop pour découpler les hauteurs des deux colonnes.
+          PollWidget rend `null` s'il n'y a rien à afficher → pas de vide. */}
+      <div className="contents lg:block lg:col-span-2 lg:space-y-8">
+        <PollWidget className="order-1" />
+        <div className="order-3">
+          <NewsSection />
+        </div>
+      </div>
 
-      {/* Menu cafét : colonne de droite sur 2 lignes et sticky (desktop) ;
+      {/* Menu cafét : colonne de droite, hauteur indépendante (desktop) ;
           accordéon repliable sur mobile, intercalé entre sondage et actualités. */}
-      <aside className="order-2 lg:col-start-3 lg:row-start-1 lg:row-span-2">
+      <aside className="order-2 lg:col-start-3">
         <CafetMenu />
       </aside>
-
-      {/* Actualités : sous le sondage (desktop) ; en dernier sur mobile. */}
-      <div className="order-3 lg:col-span-2">
-        <NewsSection />
-      </div>
     </div>
   )
 }
