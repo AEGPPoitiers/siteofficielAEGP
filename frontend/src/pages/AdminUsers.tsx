@@ -179,8 +179,8 @@ export default function AdminUsers() {
             Administration — membres
           </h1>
           <p className="text-gray-600 mt-1">
-            Gère les rôles tuteur et com des comptes et supprime les comptes
-            obsolètes.
+            Gère les rôles tutorat et communication des comptes et supprime les
+            comptes obsolètes.
           </p>
         </div>
         <Link
