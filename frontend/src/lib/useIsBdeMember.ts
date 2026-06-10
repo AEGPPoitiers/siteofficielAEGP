@@ -11,6 +11,9 @@ type BdeStatus = {
   /** Peut éditer le tutorat : BDE/admin OU tuteur (is_tutor). Les tuteurs n'ont
    *  ce droit QUE sur le tutorat. */
   canEditTutorat: boolean
+  /** Peut gérer les actualités : BDE/admin OU com (is_com). Les membres com
+   *  n'ont ce droit QUE sur les actualités. */
+  canEditNews: boolean
 }
 
 export function useIsBdeMember(): BdeStatus {
@@ -20,6 +23,7 @@ export function useIsBdeMember(): BdeStatus {
   const [isBdeFlag, setIsBdeFlag] = useState(false)
   const [isAdminFlag, setIsAdminFlag] = useState(false)
   const [isTutorFlag, setIsTutorFlag] = useState(false)
+  const [isComFlag, setIsComFlag] = useState(false)
 
   useEffect(() => {
     if (authLoading || !userId) return
@@ -28,7 +32,7 @@ export function useIsBdeMember(): BdeStatus {
 
     supabase
       .from('profiles')
-      .select('is_bde_member, is_admin, is_tutor')
+      .select('is_bde_member, is_admin, is_tutor, is_com')
       .eq('id', userId)
       .single()
       .then(({ data, error }) => {
@@ -37,10 +41,12 @@ export function useIsBdeMember(): BdeStatus {
           setIsBdeFlag(false)
           setIsAdminFlag(false)
           setIsTutorFlag(false)
+          setIsComFlag(false)
         } else {
           setIsBdeFlag(!!data.is_bde_member || !!data.is_admin)
           setIsAdminFlag(!!data.is_admin)
           setIsTutorFlag(!!data.is_tutor)
+          setIsComFlag(!!data.is_com)
         }
         setFetchedFor(userId)
       })
@@ -55,15 +61,23 @@ export function useIsBdeMember(): BdeStatus {
     isBde: false,
     isAdmin: false,
     canEditTutorat: false,
+    canEditNews: false,
   }
   if (authLoading) return idle
   if (!userId)
-    return { loading: false, isBde: false, isAdmin: false, canEditTutorat: false }
+    return {
+      loading: false,
+      isBde: false,
+      isAdmin: false,
+      canEditTutorat: false,
+      canEditNews: false,
+    }
   if (fetchedFor !== userId) return idle
   return {
     loading: false,
     isBde: isBdeFlag,
     isAdmin: isAdminFlag,
     canEditTutorat: isBdeFlag || isTutorFlag,
+    canEditNews: isBdeFlag || isComFlag,
   }
 }

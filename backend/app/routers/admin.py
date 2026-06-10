@@ -29,11 +29,13 @@ class AdminUser(BaseModel):
     is_bde_member: bool = False
     is_admin: bool = False
     is_tutor: bool = False
+    is_com: bool = False
 
 
 class UpdateRolesIn(BaseModel):
     is_bde_member: bool | None = None
     is_tutor: bool | None = None
+    is_com: bool | None = None
 
 
 class ImportStudentIn(BaseModel):
@@ -143,7 +145,7 @@ async def list_users(_: str = Depends(require_admin)) -> list[AdminUser]:
         prof_resp = await client.get(
             f"{base}/rest/v1/profiles",
             params={
-                "select": "id,full_name,promotion,is_bde_member,is_admin,is_tutor"
+                "select": "id,full_name,promotion,is_bde_member,is_admin,is_tutor,is_com"
             },
             headers=_service_headers(),
         )
@@ -163,6 +165,7 @@ async def list_users(_: str = Depends(require_admin)) -> list[AdminUser]:
             is_bde_member=bool(p.get("is_bde_member")),
             is_admin=bool(p.get("is_admin")),
             is_tutor=bool(p.get("is_tutor")),
+            is_com=bool(p.get("is_com")),
         )
         for p in profiles
     ]
@@ -207,6 +210,7 @@ async def update_user_roles(
         is_bde_member=bool(p.get("is_bde_member")),
         is_admin=bool(p.get("is_admin")),
         is_tutor=bool(p.get("is_tutor")),
+        is_com=bool(p.get("is_com")),
     )
 
 
