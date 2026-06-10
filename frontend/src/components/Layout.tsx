@@ -8,6 +8,7 @@ import UserMenu from './UserMenu'
 
 function getBgClass(pathname: string): string {
   if (pathname.startsWith('/actualites')) return 'bg-green-50'
+  if (pathname.startsWith('/sondages')) return 'bg-purple-50'
   if (pathname.startsWith('/agenda')) return 'bg-red-50'
   if (pathname.startsWith('/boiteaidee')) return 'bg-yellow-50'
   if (pathname.startsWith('/tutorat')) return 'bg-blue-50'
