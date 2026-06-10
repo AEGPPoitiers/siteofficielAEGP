@@ -119,7 +119,7 @@ function NodeList({
           key={node.id}
           type="button"
           onClick={() => onEnter(node)}
-          className="flex items-center justify-between gap-3 bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-left hover:bg-gray-50 hover:border-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
+          className="flex w-full items-center justify-between gap-3 bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-left hover:bg-gray-50 hover:border-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
         >
           <span className="flex items-center gap-3 min-w-0">
             <Folder size={20} className="text-gray-400 shrink-0" aria-hidden />
