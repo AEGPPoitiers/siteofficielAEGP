@@ -51,7 +51,7 @@ function resolveLink(payload: NewsFormPayload): {
 
 export default function Actualites() {
   const { user } = useAuth()
-  const { isBde } = useIsBdeMember()
+  const { canEditNews } = useIsBdeMember()
   const confirm = useConfirm()
 
   const [news, setNews] = useState<NewsItem[]>([])
@@ -179,7 +179,7 @@ export default function Actualites() {
           <h1 className="text-3xl font-bold text-gray-900">Actualités</h1>
           <p className="text-gray-600 mt-1">Les dernières nouvelles de l'AEGP.</p>
         </div>
-        {isBde && (
+        {canEditNews && (
           <Button
             type="button"
             variant="primary"
@@ -193,7 +193,7 @@ export default function Actualites() {
 
       {error && <FieldError>{error}</FieldError>}
 
-      {isBde && showForm && user && (
+      {canEditNews && showForm && user && (
         <NewsForm
           submitLabel="Publier"
           submittingLabel="Publication…"
@@ -211,7 +211,7 @@ export default function Actualites() {
       ) : (
         <div className="space-y-4">
           {news.map((item) =>
-            isBde && editingId === item.id ? (
+            canEditNews && editingId === item.id ? (
               <NewsForm
                 key={item.id}
                 initialValues={{
@@ -242,7 +242,7 @@ export default function Actualites() {
                   <h2 className="text-xl font-semibold text-gray-900">
                     {item.title}
                   </h2>
-                  {isBde && (
+                  {canEditNews && (
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         type="button"

@@ -93,6 +93,7 @@ export default function AdminUsers() {
                 ...u,
                 is_bde_member: updated.is_bde_member,
                 is_tutor: updated.is_tutor,
+                is_com: updated.is_com,
                 is_admin: updated.is_admin,
               }
             : u,
@@ -178,7 +179,8 @@ export default function AdminUsers() {
             Administration — membres
           </h1>
           <p className="text-gray-600 mt-1">
-            Gère le rôle tuteur des comptes et supprime les comptes obsolètes.
+            Gère les rôles tuteur et com des comptes et supprime les comptes
+            obsolètes.
           </p>
         </div>
         <Link
@@ -294,6 +296,12 @@ export default function AdminUsers() {
                     active={u.is_tutor}
                     disabled={savingId === u.id}
                     onClick={() => toggle(u, 'is_tutor')}
+                  />
+                  <RolePill
+                    label="Com"
+                    active={u.is_com}
+                    disabled={savingId === u.id}
+                    onClick={() => toggle(u, 'is_com')}
                   />
                   <button
                     type="button"
