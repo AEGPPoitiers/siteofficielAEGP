@@ -30,7 +30,7 @@ export type ParseResult = {
 }
 
 // Validation volontairement permissive : le vrai juge reste Supabase à l'envoi.
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 /**
  * Convertit une année de diplôme en niveau, pour une année de rentrée donnée.
