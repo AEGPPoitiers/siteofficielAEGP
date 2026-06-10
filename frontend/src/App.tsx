@@ -9,6 +9,7 @@ import Tutorat from './pages/Tutorat'
 import Login from './pages/Login'
 import Boiteaidee from './pages/Boiteaidee'
 import Actualites from './pages/Actualites'
+import Sondages from './pages/Sondages'
 import AdminUsers from './pages/AdminUsers'
 import AdminImport from './pages/AdminImport'
 import { ProtectedRoute } from './components/ProtectedRoute'
@@ -24,6 +25,7 @@ export default function App() {
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
         <Route path="/actualites" element={<Actualites />} />
+        <Route path="/sondages" element={<Sondages />} />
         <Route path="/agenda" element={<Agenda />} />
         <Route
           path="/agenda/new"
