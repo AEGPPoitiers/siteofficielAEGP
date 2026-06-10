@@ -38,6 +38,14 @@ class UpdateRolesIn(BaseModel):
     is_com: bool | None = None
 
 
+class UpdateUserInfoIn(BaseModel):
+    # Champs d'identité éditables par l'admin. `exclude_unset` côté endpoint :
+    # seuls les champs réellement envoyés sont modifiés (promotion="" → effacée).
+    full_name: str | None = None
+    promotion: str | None = None
+    email: str | None = None
+
+
 class ImportStudentIn(BaseModel):
     email: str
     full_name: str | None = None
@@ -207,6 +215,152 @@ async def update_user_roles(
     return AdminUser(
         id=p["id"],
         full_name=p.get("full_name"),
+        is_bde_member=bool(p.get("is_bde_member")),
+        is_admin=bool(p.get("is_admin")),
+        is_tutor=bool(p.get("is_tutor")),
+        is_com=bool(p.get("is_com")),
+    )
+
+
+@router.patch("/users/{user_id}/info", response_model=AdminUser)
+async def update_user_info(
+    user_id: str,
+    payload: UpdateUserInfoIn,
+    _: str = Depends(require_admin),
+) -> AdminUser:
+    """Modifie l'identité d'un compte : nom complet, promotion, email.
+
+    - `full_name` / `promotion` vivent dans `profiles` (PATCH PostgREST).
+    - `email` vit dans `auth.users` → mis à jour via l'API admin GoTrue
+      (`email_confirm=true` pour que la nouvelle adresse soit utilisable aussitôt).
+    - Garde-fou : on refuse de modifier un compte admin (cohérent avec delete).
+    - `exclude_unset` : seuls les champs envoyés sont touchés ; `promotion=""`
+      efface la promotion (NULL).
+    """
+    fields = payload.model_dump(exclude_unset=True)
+    if not fields:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Aucune information à modifier"
+        )
+
+    base = get_settings().supabase_url
+    async with httpx.AsyncClient(timeout=20) as client:
+        # Garde-fou : compte admin non modifiable.
+        prof = await client.get(
+            f"{base}/rest/v1/profiles",
+            params={"id": f"eq.{user_id}", "select": "is_admin"},
+            headers=_service_headers(),
+        )
+        if prof.status_code != 200:
+            raise HTTPException(
+                status.HTTP_502_BAD_GATEWAY, "Échec du lookup profil"
+            )
+        prof_rows = prof.json()
+        if not prof_rows:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Profil introuvable")
+        if prof_rows[0].get("is_admin"):
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN, "Impossible de modifier un compte admin"
+            )
+
+        # 1) Email → auth.users (en premier : c'est l'écriture la plus susceptible
+        #    d'échouer — ex. adresse déjà utilisée — et on évite un profil modifié
+        #    pour rien).
+        if "email" in fields:
+            email = (fields["email"] or "").strip().lower()
+            if not email:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST, "Adresse email vide"
+                )
+            resp = await client.put(
+                f"{base}/auth/v1/admin/users/{user_id}",
+                headers={
+                    **_service_headers(),
+                    "Content-Type": "application/json",
+                },
+                json={"email": email, "email_confirm": True},
+            )
+            if resp.status_code not in (200, 201):
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST, _gotrue_message(resp)
+                )
+
+            # L'adresse de connexion a changé → on révoque les sessions de
+            # l'utilisateur pour le forcer à se reconnecter avec la nouvelle
+            # adresse (le refresh token est tué tout de suite ; un access token
+            # déjà émis reste valide jusqu'à expiration). Voir la migration
+            # 0014 : RPC `security definer` car PostgREST n'expose pas `auth`.
+            revoke = await client.post(
+                f"{base}/rest/v1/rpc/admin_revoke_user_sessions",
+                headers={
+                    **_service_headers(),
+                    "Content-Type": "application/json",
+                },
+                json={"uid": user_id},
+            )
+            if revoke.status_code not in (200, 204):
+                raise HTTPException(
+                    status.HTTP_502_BAD_GATEWAY,
+                    "Email modifié mais échec de la révocation des sessions ; "
+                    "réessayez pour forcer la déconnexion.",
+                )
+
+        # 2) profiles : full_name / promotion
+        profile_updates: dict = {}
+        if "full_name" in fields:
+            profile_updates["full_name"] = (fields["full_name"] or "").strip()
+        if "promotion" in fields:
+            promo = (fields["promotion"] or "").strip().upper()
+            if promo and promo not in _PROMOTIONS:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    f"Promotion inconnue : {fields['promotion']}",
+                )
+            profile_updates["promotion"] = promo or None
+        if profile_updates:
+            patch = await client.patch(
+                f"{base}/rest/v1/profiles",
+                params={"id": f"eq.{user_id}"},
+                headers={
+                    **_service_headers(),
+                    "Content-Type": "application/json",
+                    "Prefer": "return=representation",
+                },
+                json=profile_updates,
+            )
+            if patch.status_code not in (200, 204):
+                raise HTTPException(
+                    status.HTTP_502_BAD_GATEWAY,
+                    "Échec de la mise à jour du profil",
+                )
+
+        # État final : on relit le profil + l'email (refléte les deux écritures).
+        prof2 = await client.get(
+            f"{base}/rest/v1/profiles",
+            params={
+                "id": f"eq.{user_id}",
+                "select": "id,full_name,promotion,is_bde_member,is_admin,is_tutor,is_com",
+            },
+            headers=_service_headers(),
+        )
+        if prof2.status_code != 200 or not prof2.json():
+            raise HTTPException(
+                status.HTTP_502_BAD_GATEWAY, "Échec de la relecture du profil"
+            )
+        p = prof2.json()[0]
+        user_resp = await client.get(
+            f"{base}/auth/v1/admin/users/{user_id}",
+            headers=_service_headers(),
+        )
+        current_email = (
+            user_resp.json().get("email") if user_resp.status_code == 200 else None
+        )
+
+    return AdminUser(
+        id=p["id"],
+        email=current_email,
+        full_name=p.get("full_name"),
+        promotion=p.get("promotion"),
         is_bde_member=bool(p.get("is_bde_member")),
         is_admin=bool(p.get("is_admin")),
         is_tutor=bool(p.get("is_tutor")),
