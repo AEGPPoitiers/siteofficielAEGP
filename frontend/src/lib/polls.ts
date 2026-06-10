@@ -55,6 +55,25 @@ export async function listPolls(): Promise<PollWithOptions[]> {
 }
 
 /**
+ * Récupère le sondage ouvert le plus récent (avec ses options), ou null s'il
+ * n'y en a aucun. Utilisé par l'encart de la page d'accueil.
+ */
+export async function getActivePoll(): Promise<PollWithOptions | null> {
+  const { data, error } = await supabase
+    .from('polls')
+    .select('*, options:poll_options(*)')
+    .eq('is_closed', false)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) return null
+  const poll = data as PollWithOptions
+  poll.options.sort((a, b) => a.position - b.position)
+  return poll
+}
+
+/**
  * Crée un sondage avec ses options (réservé admin par la RLS). Les libellés
  * vides sont ignorés ; l'appelant doit garantir au moins POLL_MIN_OPTIONS choix.
  */

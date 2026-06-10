@@ -69,9 +69,6 @@ export default function Layout() {
             <NavLink to="/actualites" className={linkClass}>
               Actualités
             </NavLink>
-            <NavLink to="/sondages" className={linkClass}>
-              Sondages
-            </NavLink>
             <NavLink to="/agenda" className={linkClass}>
               Agenda
             </NavLink>
@@ -115,9 +112,6 @@ export default function Layout() {
             </NavLink>
             <NavLink to="/actualites" className={mobileLinkClass}>
               Actualités
-            </NavLink>
-            <NavLink to="/sondages" className={mobileLinkClass}>
-              Sondages
             </NavLink>
             <NavLink to="/agenda" className={mobileLinkClass}>
               Agenda

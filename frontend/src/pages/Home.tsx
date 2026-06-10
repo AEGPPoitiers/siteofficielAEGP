@@ -1,36 +1,72 @@
+import { useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import afficheCafet from '../assets/affiche-cafet.jpeg'
 import NewsSection from '../components/NewsSection'
+import PollWidget from '../components/PollWidget'
 
 export default function Home() {
   return (
     <div className="grid lg:grid-cols-3 gap-8">
-      {/* Actualités : colonne principale (à gauche sur grand écran). */}
-      <div className="lg:col-span-2 order-2 lg:order-1">
+      {/* Sondage : haut de la colonne principale (desktop) ; premier sur mobile.
+          PollWidget rend `null` s'il n'y a rien à afficher → pas de cellule vide. */}
+      <PollWidget className="order-1 lg:col-span-2" />
+
+      {/* Menu cafét : colonne de droite sur 2 lignes et sticky (desktop) ;
+          accordéon repliable sur mobile, intercalé entre sondage et actualités. */}
+      <aside className="order-2 lg:col-start-3 lg:row-start-1 lg:row-span-2">
+        <CafetMenu />
+      </aside>
+
+      {/* Actualités : sous le sondage (desktop) ; en dernier sur mobile. */}
+      <div className="order-3 lg:col-span-2">
         <NewsSection />
       </div>
+    </div>
+  )
+}
 
-      {/* Affiche cafét : barre latérale qui reste visible au scroll.
-          Sur mobile, elle passe en premier (order-1) pour voir le menu d'emblée. */}
-      <aside className="order-1 lg:order-2">
-        <div className="lg:sticky lg:top-8">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-            Menu de la cafétéria
-          </h2>
-          <a
-            href={afficheCafet}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block"
-          >
-            <img
-              src={afficheCafet}
-              alt="Menu de la cafétéria AEGP"
-              className="w-full rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
-            />
-          </a>
-          <p className="text-sm text-gray-500 mt-2">Cliquez pour agrandir</p>
-        </div>
-      </aside>
+/**
+ * Menu de la cafétéria. Sur desktop : titre + affiche toujours visibles, sticky.
+ * Sur mobile : accordéon replié par défaut (le titre sert de bouton déroulant)
+ * pour ne pas reléguer les actualités trop bas.
+ */
+function CafetMenu() {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="lg:sticky lg:top-8">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex items-center justify-between w-full mb-4 text-left lg:pointer-events-none lg:cursor-default"
+      >
+        <h2 className="text-2xl font-semibold text-gray-900">
+          Menu de la cafétéria
+        </h2>
+        <ChevronDown
+          size={24}
+          aria-hidden
+          className={`text-gray-500 lg:hidden transition-transform ${
+            open ? 'rotate-180' : ''
+          }`}
+        />
+      </button>
+
+      <div className={`${open ? 'block' : 'hidden'} lg:block`}>
+        <a
+          href={afficheCafet}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block"
+        >
+          <img
+            src={afficheCafet}
+            alt="Menu de la cafétéria AEGP"
+            className="w-full rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+          />
+        </a>
+        <p className="text-sm text-gray-500 mt-2">Cliquez pour agrandir</p>
+      </div>
     </div>
   )
 }
