@@ -4,6 +4,7 @@ import {
   Search,
   Shield,
   Trash2,
+  Pencil,
   UserPlus,
   Upload,
   GraduationCap,
@@ -11,11 +12,13 @@ import {
 import {
   listUsers,
   updateUserRoles,
+  updateUserInfo,
   deleteUser,
   deletePromotion,
   importStudents,
   type AdminUser,
   type EditableRoles,
+  type EditableUserInfo,
 } from '../lib/adminUsers'
 import { PROMOTIONS, EMAIL_RE, type Promotion } from '../lib/studentsImport'
 import { useConfirm } from '../contexts/ConfirmContext'
@@ -36,6 +39,7 @@ export default function AdminUsers() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -133,6 +137,11 @@ export default function AdminUsers() {
     } finally {
       setSavingId(null)
     }
+  }
+
+  function handleSaved(updated: AdminUser) {
+    setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)))
+    setEditingId(null)
   }
 
   async function handleDelete(user: AdminUser) {
@@ -306,53 +315,77 @@ export default function AdminUsers() {
           {filtered.map((u) => (
             <div
               key={u.id}
-              className="flex items-center gap-3 flex-wrap bg-white rounded-lg shadow-sm border border-gray-200 p-3"
+              className="bg-white rounded-lg shadow-sm border border-gray-200"
             >
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-gray-900 truncate">
-                    {u.full_name || u.email || '(sans nom)'}
-                  </span>
-                  {u.promotion && (
-                    <span className="inline-flex items-center shrink-0 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {u.promotion}
+              <div className="flex items-center gap-3 flex-wrap p-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-900 truncate">
+                      {u.full_name || u.email || '(sans nom)'}
                     </span>
-                  )}
-                  {u.is_admin && (
-                    <span className="inline-flex items-center gap-1 shrink-0 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-900 text-white">
-                      <Shield size={12} aria-hidden />
-                      Admin
-                    </span>
+                    {u.promotion && (
+                      <span className="inline-flex items-center shrink-0 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {u.promotion}
+                      </span>
+                    )}
+                    {u.is_admin && (
+                      <span className="inline-flex items-center gap-1 shrink-0 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-900 text-white">
+                        <Shield size={12} aria-hidden />
+                        Admin
+                      </span>
+                    )}
+                  </div>
+                  {u.full_name && u.email && (
+                    <p className="text-sm text-gray-500 truncate">{u.email}</p>
                   )}
                 </div>
-                {u.full_name && u.email && (
-                  <p className="text-sm text-gray-500 truncate">{u.email}</p>
+                {u.is_admin ? null : (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <RolePill
+                      label="Tuteur"
+                      active={u.is_tutor}
+                      disabled={savingId === u.id}
+                      onClick={() => toggle(u, 'is_tutor')}
+                    />
+                    <RolePill
+                      label="Com"
+                      active={u.is_com}
+                      disabled={savingId === u.id}
+                      onClick={() => toggle(u, 'is_com')}
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setEditingId((id) => (id === u.id ? null : u.id))
+                      }
+                      aria-label={`Modifier les informations de ${u.full_name || u.email || ''}`}
+                      aria-expanded={editingId === u.id}
+                      className={`p-1.5 rounded-md ${
+                        editingId === u.id
+                          ? 'bg-gray-900 text-white'
+                          : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      <Pencil size={16} aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(u)}
+                      disabled={deletingId === u.id}
+                      aria-label={`Supprimer le compte ${u.full_name || u.email || ''}`}
+                      className="p-1.5 text-red-600 hover:bg-red-50 rounded-md disabled:opacity-50"
+                    >
+                      <Trash2 size={16} aria-hidden />
+                    </button>
+                  </div>
                 )}
               </div>
-              {u.is_admin ? null : (
-                <div className="flex items-center gap-2 shrink-0">
-                  <RolePill
-                    label="Tuteur"
-                    active={u.is_tutor}
-                    disabled={savingId === u.id}
-                    onClick={() => toggle(u, 'is_tutor')}
-                  />
-                  <RolePill
-                    label="Com"
-                    active={u.is_com}
-                    disabled={savingId === u.id}
-                    onClick={() => toggle(u, 'is_com')}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(u)}
-                    disabled={deletingId === u.id}
-                    aria-label={`Supprimer le compte ${u.full_name || u.email || ''}`}
-                    className="p-1.5 text-red-600 hover:bg-red-50 rounded-md disabled:opacity-50"
-                  >
-                    <Trash2 size={16} aria-hidden />
-                  </button>
-                </div>
+              {editingId === u.id && (
+                <EditUserForm
+                  user={u}
+                  onSaved={handleSaved}
+                  onCancel={() => setEditingId(null)}
+                />
               )}
             </div>
           ))}
@@ -499,6 +532,159 @@ function AddStudentForm({
         </Button>
         <span className="text-xs text-gray-500">
           Un email d'invitation est envoyé immédiatement à l'adresse.
+        </span>
+      </div>
+    </form>
+  )
+}
+
+/** Sépare un nom complet « Prénom Nom » : premier mot = prénom, reste = nom.
+ *  Convention de l'import (full_name = `${prenom} ${nom}`). */
+function splitName(full: string): { prenom: string; nom: string } {
+  const t = full.trim()
+  const i = t.indexOf(' ')
+  if (i === -1) return { prenom: t, nom: '' }
+  return { prenom: t.slice(0, i), nom: t.slice(i + 1).trim() }
+}
+
+/** Édition de l'identité d'un compte (non-admin) : nom, prénom, promotion, email.
+ *  N'envoie au backend que les champs réellement modifiés. */
+function EditUserForm({
+  user,
+  onSaved,
+  onCancel,
+}: {
+  user: AdminUser
+  onSaved: (u: AdminUser) => void
+  onCancel: () => void
+}) {
+  const initial = splitName(user.full_name ?? '')
+  const [prenom, setPrenom] = useState(initial.prenom)
+  const [nom, setNom] = useState(initial.nom)
+  const [email, setEmail] = useState(user.email ?? '')
+  const [promotion, setPromotion] = useState<Promotion | ''>(
+    user.promotion ?? '',
+  )
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    setError(null)
+    const mail = email.trim().toLowerCase()
+    if (!EMAIL_RE.test(mail)) {
+      setError('Adresse email invalide.')
+      return
+    }
+    const full_name = `${prenom.trim()} ${nom.trim()}`.trim()
+    if (!full_name) {
+      setError('Le nom ne peut pas être vide.')
+      return
+    }
+
+    // On ne transmet que ce qui change (évite une réécriture d'email inutile).
+    const patch: EditableUserInfo = {}
+    if (full_name !== (user.full_name ?? '')) patch.full_name = full_name
+    if (mail !== (user.email ?? '').toLowerCase()) patch.email = mail
+    const nextPromo = promotion || null
+    if (nextPromo !== (user.promotion ?? null)) patch.promotion = nextPromo
+
+    if (Object.keys(patch).length === 0) {
+      onCancel()
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const updated = await updateUserInfo(user.id, patch)
+      onSaved(updated)
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Échec de la mise à jour.',
+      )
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="border-t border-gray-200 bg-gray-50 p-4 rounded-b-lg"
+    >
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
+        <Input
+          id={`edit-prenom-${user.id}`}
+          label="Prénom"
+          value={prenom}
+          onChange={(e) => setPrenom(e.target.value)}
+          disabled={submitting}
+          placeholder="Jean"
+        />
+        <Input
+          id={`edit-nom-${user.id}`}
+          label="Nom"
+          value={nom}
+          onChange={(e) => setNom(e.target.value)}
+          disabled={submitting}
+          placeholder="Dupont"
+        />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
+        <Input
+          id={`edit-email-${user.id}`}
+          label="Email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          disabled={submitting}
+          placeholder="jean.dupont@etu.fr"
+          required
+        />
+        <div className="mb-4">
+          <label
+            htmlFor={`edit-promo-${user.id}`}
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Promotion
+          </label>
+          <select
+            id={`edit-promo-${user.id}`}
+            value={promotion}
+            onChange={(e) => setPromotion(e.target.value as Promotion | '')}
+            disabled={submitting}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
+          >
+            <option value="">Sans promotion</option>
+            {PROMOTIONS.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {error && (
+        <div className="mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+          {error}
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button type="submit" loading={submitting}>
+          {submitting ? 'Enregistrement…' : 'Enregistrer'}
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={onCancel}
+          disabled={submitting}
+        >
+          Annuler
+        </Button>
+        <span className="text-xs text-gray-500">
+          Changer l'email modifie l'adresse de connexion du compte.
         </span>
       </div>
     </form>

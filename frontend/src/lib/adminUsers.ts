@@ -30,6 +30,22 @@ export function updateUserRoles(
   return apiPatch<AdminUser>(`/admin/users/${id}`, roles)
 }
 
+/** Identité modifiable via l'UI admin (full_name, promotion, email). */
+export type EditableUserInfo = {
+  full_name?: string
+  promotion?: Promotion | null
+  email?: string
+}
+
+/** Modifie l'identité d'un compte (nom, promotion, email). N'envoie que les
+ *  champs fournis ; `promotion: null` efface la promotion. */
+export function updateUserInfo(
+  id: string,
+  info: EditableUserInfo,
+): Promise<AdminUser> {
+  return apiPatch<AdminUser>(`/admin/users/${id}/info`, info)
+}
+
 /** Supprime définitivement un compte (le profil part en cascade). */
 export function deleteUser(id: string): Promise<unknown> {
   return apiDelete(`/admin/users/${id}`)
