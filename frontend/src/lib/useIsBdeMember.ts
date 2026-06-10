@@ -32,7 +32,7 @@ export function useIsBdeMember(): BdeStatus {
 
     supabase
       .from('profiles')
-      .select('is_bde_member, is_admin, is_tutor, is_com')
+      .select('is_admin, is_tutor, is_com')
       .eq('id', userId)
       .single()
       .then(({ data, error }) => {
@@ -43,7 +43,7 @@ export function useIsBdeMember(): BdeStatus {
           setIsTutorFlag(false)
           setIsComFlag(false)
         } else {
-          setIsBdeFlag(!!data.is_bde_member || !!data.is_admin)
+          setIsBdeFlag(!!data.is_admin)
           setIsAdminFlag(!!data.is_admin)
           setIsTutorFlag(!!data.is_tutor)
           setIsComFlag(!!data.is_com)
