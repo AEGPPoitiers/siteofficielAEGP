@@ -30,6 +30,21 @@ import { FieldError } from '../components/ui/FieldError'
 
 const IMAGE_MAX_BYTES = 5 * 1024 * 1024
 
+const MONTHS = [
+  'Janvier',
+  'Février',
+  'Mars',
+  'Avril',
+  'Mai',
+  'Juin',
+  'Juillet',
+  'Août',
+  'Septembre',
+  'Octobre',
+  'Novembre',
+  'Décembre',
+]
+
 type NewsFormPayload = {
   title: string
   content: string
@@ -59,6 +74,8 @@ export default function Actualites() {
   const [error, setError] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [filterMonth, setFilterMonth] = useState<string>('all')
+  const [filterYear, setFilterYear] = useState<string>('all')
 
   useEffect(() => {
     let cancelled = false
@@ -77,6 +94,34 @@ export default function Actualites() {
       cancelled = true
     }
   }, [])
+
+  // Années présentes dans les actualités, pour alimenter le filtre (récentes d'abord).
+  const availableYears = useMemo(() => {
+    const years = new Set(news.map((n) => new Date(n.created_at).getFullYear()))
+    return Array.from(years).sort((a, b) => b - a)
+  }, [news])
+
+  // Mois présents dans l'année sélectionnée (le filtre mois s'active après l'année).
+  const availableMonths = useMemo(() => {
+    if (filterYear === 'all') return []
+    const months = new Set(
+      news
+        .filter((n) => new Date(n.created_at).getFullYear() === Number(filterYear))
+        .map((n) => new Date(n.created_at).getMonth() + 1),
+    )
+    return Array.from(months).sort((a, b) => a - b)
+  }, [news, filterYear])
+
+  // Actualités filtrées par mois / année (sur la date de publication).
+  const filteredNews = useMemo(() => {
+    return news.filter((item) => {
+      const d = new Date(item.created_at)
+      const monthOk =
+        filterMonth === 'all' || d.getMonth() + 1 === Number(filterMonth)
+      const yearOk = filterYear === 'all' || d.getFullYear() === Number(filterYear)
+      return monthOk && yearOk
+    })
+  }, [news, filterMonth, filterYear])
 
   function handleCreated(item: NewsItem) {
     setNews((prev) => [item, ...prev])
@@ -202,15 +247,68 @@ export default function Actualites() {
         />
       )}
 
+      {!loading && news.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm font-medium text-gray-600">Filtrer par :</span>
+          <select
+            aria-label="Filtrer par année"
+            value={filterYear}
+            onChange={(e) => {
+              setFilterYear(e.target.value)
+              setFilterMonth('all')
+            }}
+            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
+          >
+            <option value="all">Toutes les années</option>
+            {availableYears.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+          {filterYear !== 'all' && (
+            <select
+              aria-label="Filtrer par mois"
+              value={filterMonth}
+              onChange={(e) => setFilterMonth(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
+            >
+              <option value="all">Tous les mois</option>
+              {availableMonths.map((m) => (
+                <option key={m} value={m}>
+                  {MONTHS[m - 1]}
+                </option>
+              ))}
+            </select>
+          )}
+          {filterYear !== 'all' && (
+            <button
+              type="button"
+              onClick={() => {
+                setFilterMonth('all')
+                setFilterYear('all')
+              }}
+              className="text-sm text-gray-500 hover:text-gray-700 underline"
+            >
+              Réinitialiser
+            </button>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <div className="text-center py-12 text-gray-500">Chargement…</div>
       ) : news.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
           Aucune actualité pour le moment.
         </div>
+      ) : filteredNews.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">
+          Aucune actualité pour cette période.
+        </div>
       ) : (
         <div className="space-y-4">
-          {news.map((item) =>
+          {filteredNews.map((item) =>
             canEditNews && editingId === item.id ? (
               <NewsForm
                 key={item.id}
