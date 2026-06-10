@@ -1,16 +1,26 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
-import { Search, Shield, Trash2, UserPlus, GraduationCap } from 'lucide-react'
+import {
+  Search,
+  Shield,
+  Trash2,
+  UserPlus,
+  Upload,
+  GraduationCap,
+} from 'lucide-react'
 import {
   listUsers,
   updateUserRoles,
   deleteUser,
   deletePromotion,
+  importStudents,
   type AdminUser,
   type EditableRoles,
 } from '../lib/adminUsers'
-import { PROMOTIONS, type Promotion } from '../lib/studentsImport'
+import { PROMOTIONS, EMAIL_RE, type Promotion } from '../lib/studentsImport'
 import { useConfirm } from '../contexts/ConfirmContext'
+import { Button } from '../components/ui/Button'
+import { Input } from '../components/ui/Input'
 
 type PromoFilter = 'all' | Promotion | 'none'
 
@@ -25,6 +35,7 @@ export default function AdminUsers() {
   const [savingId, setSavingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [showAdd, setShowAdd] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -47,6 +58,18 @@ export default function AdminUsers() {
       cancelled = true
     }
   }, [])
+
+  // Recharge la liste après une invitation manuelle (le nouveau compte apparaît
+  // aussitôt, prêt à se voir attribuer un rôle).
+  async function reloadUsers() {
+    try {
+      setUsers(await listUsers())
+    } catch (e) {
+      setActionError(
+        e instanceof Error ? e.message : 'Impossible de recharger la liste.',
+      )
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -179,18 +202,35 @@ export default function AdminUsers() {
             Administration — membres
           </h1>
           <p className="text-gray-600 mt-1">
-            Gère les rôles tuteur et com des comptes et supprime les comptes
-            obsolètes.
+            Gère les rôles tutorat et communication des comptes et supprime les
+            comptes obsolètes.
           </p>
         </div>
-        <Link
-          to="/admin/import"
-          className="inline-flex items-center gap-2 shrink-0 bg-black text-white font-medium rounded-md px-4 py-2 hover:bg-gray-800"
-        >
-          <UserPlus size={16} aria-hidden />
-          Importer des étudiants
-        </Link>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            type="button"
+            onClick={() => setShowAdd((v) => !v)}
+            className="inline-flex items-center gap-2"
+          >
+            <UserPlus size={16} aria-hidden />
+            Ajouter un étudiant
+          </Button>
+          <Link
+            to="/admin/import"
+            className="inline-flex items-center gap-2 border border-gray-300 text-gray-700 font-medium rounded-md px-4 py-2 hover:bg-gray-50"
+          >
+            <Upload size={16} aria-hidden />
+            Importer un CSV
+          </Link>
+        </div>
       </div>
+
+      {showAdd && (
+        <AddStudentForm
+          onInvited={reloadUsers}
+          onClose={() => setShowAdd(false)}
+        />
+      )}
 
       {loadError && (
         <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
@@ -319,6 +359,149 @@ export default function AdminUsers() {
         </div>
       )}
     </div>
+  )
+}
+
+/** Ajout manuel d'un seul étudiant : réutilise le flux d'invitation de l'import
+ *  CSV (importStudents avec un tableau d'un élément). Un vrai email part aussitôt. */
+function AddStudentForm({
+  onInvited,
+  onClose,
+}: {
+  onInvited: () => void
+  onClose: () => void
+}) {
+  const [prenom, setPrenom] = useState('')
+  const [nom, setNom] = useState('')
+  const [email, setEmail] = useState('')
+  const [promotion, setPromotion] = useState<Promotion | ''>('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    setError(null)
+    setNotice(null)
+    const mail = email.trim().toLowerCase()
+    if (!EMAIL_RE.test(mail)) {
+      setError('Adresse email invalide.')
+      return
+    }
+    const full_name = `${prenom.trim()} ${nom.trim()}`.trim()
+    setSubmitting(true)
+    try {
+      const r = await importStudents([
+        { email: mail, full_name, promotion: promotion || null },
+      ])
+      if (r.errors.length > 0) {
+        setError(r.errors[0].message)
+      } else if (r.invited.length > 0) {
+        setNotice(`Invitation envoyée à ${mail}.`)
+        setPrenom('')
+        setNom('')
+        setEmail('')
+        setPromotion('')
+        onInvited()
+      } else if (r.updated.length > 0) {
+        setNotice(`${mail} était déjà inscrit·e — promotion mise à jour.`)
+        onInvited()
+      } else {
+        setNotice(`${mail} est déjà inscrit·e — aucune invitation renvoyée.`)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Échec de l'invitation.")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
+    >
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
+        <Input
+          id="add-prenom"
+          label="Prénom"
+          value={prenom}
+          onChange={(e) => setPrenom(e.target.value)}
+          disabled={submitting}
+          placeholder="Jean"
+        />
+        <Input
+          id="add-nom"
+          label="Nom"
+          value={nom}
+          onChange={(e) => setNom(e.target.value)}
+          disabled={submitting}
+          placeholder="Dupont"
+        />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
+        <Input
+          id="add-email"
+          label="Email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          disabled={submitting}
+          placeholder="jean.dupont@etu.fr"
+          required
+        />
+        <div className="mb-4">
+          <label
+            htmlFor="add-promo"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Promotion
+          </label>
+          <select
+            id="add-promo"
+            value={promotion}
+            onChange={(e) => setPromotion(e.target.value as Promotion | '')}
+            disabled={submitting}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
+          >
+            <option value="">Sans promotion</option>
+            {PROMOTIONS.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {error && (
+        <div className="mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+          {error}
+        </div>
+      )}
+      {notice && (
+        <div className="mb-3 text-sm text-green-800 bg-green-50 border border-green-200 rounded-md px-3 py-2">
+          {notice}
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button type="submit" loading={submitting}>
+          {submitting ? 'Invitation…' : 'Inviter'}
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={onClose}
+          disabled={submitting}
+        >
+          Fermer
+        </Button>
+        <span className="text-xs text-gray-500">
+          Un email d'invitation est envoyé immédiatement à l'adresse.
+        </span>
+      </div>
+    </form>
   )
 }
 
