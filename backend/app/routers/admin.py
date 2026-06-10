@@ -26,14 +26,12 @@ class AdminUser(BaseModel):
     email: str | None = None
     full_name: str | None = None
     promotion: str | None = None
-    is_bde_member: bool = False
     is_admin: bool = False
     is_tutor: bool = False
     is_com: bool = False
 
 
 class UpdateRolesIn(BaseModel):
-    is_bde_member: bool | None = None
     is_tutor: bool | None = None
     is_com: bool | None = None
 
@@ -153,7 +151,7 @@ async def list_users(_: str = Depends(require_admin)) -> list[AdminUser]:
         prof_resp = await client.get(
             f"{base}/rest/v1/profiles",
             params={
-                "select": "id,full_name,promotion,is_bde_member,is_admin,is_tutor,is_com"
+                "select": "id,full_name,promotion,is_admin,is_tutor,is_com"
             },
             headers=_service_headers(),
         )
@@ -170,7 +168,6 @@ async def list_users(_: str = Depends(require_admin)) -> list[AdminUser]:
             email=emails.get(p["id"]),
             full_name=p.get("full_name"),
             promotion=p.get("promotion"),
-            is_bde_member=bool(p.get("is_bde_member")),
             is_admin=bool(p.get("is_admin")),
             is_tutor=bool(p.get("is_tutor")),
             is_com=bool(p.get("is_com")),
@@ -215,7 +212,6 @@ async def update_user_roles(
     return AdminUser(
         id=p["id"],
         full_name=p.get("full_name"),
-        is_bde_member=bool(p.get("is_bde_member")),
         is_admin=bool(p.get("is_admin")),
         is_tutor=bool(p.get("is_tutor")),
         is_com=bool(p.get("is_com")),
@@ -339,7 +335,7 @@ async def update_user_info(
             f"{base}/rest/v1/profiles",
             params={
                 "id": f"eq.{user_id}",
-                "select": "id,full_name,promotion,is_bde_member,is_admin,is_tutor,is_com",
+                "select": "id,full_name,promotion,is_admin,is_tutor,is_com",
             },
             headers=_service_headers(),
         )
@@ -361,7 +357,6 @@ async def update_user_info(
         email=current_email,
         full_name=p.get("full_name"),
         promotion=p.get("promotion"),
-        is_bde_member=bool(p.get("is_bde_member")),
         is_admin=bool(p.get("is_admin")),
         is_tutor=bool(p.get("is_tutor")),
         is_com=bool(p.get("is_com")),

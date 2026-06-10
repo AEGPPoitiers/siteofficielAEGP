@@ -21,7 +21,7 @@ async def _fetch_profile(user_id: str) -> dict | None:
             f"{settings.supabase_url}/rest/v1/profiles",
             params={
                 "id": f"eq.{user_id}",
-                "select": "is_bde_member,is_admin,is_tutor",
+                "select": "is_admin,is_tutor",
             },
             headers={
                 "apikey": settings.supabase_service_role_key,
@@ -39,10 +39,10 @@ async def _fetch_profile(user_id: str) -> dict | None:
 async def require_bde_member(
     user_id: str = Depends(get_current_user_id),
 ) -> str:
+    # is_bde_member a été fusionné dans is_admin (cf 0016) : seul un admin écrit
+    # le contenu réservé au BDE.
     profile = await _fetch_profile(user_id)
-    if not profile or not (
-        profile.get("is_bde_member") or profile.get("is_admin")
-    ):
+    if not profile or not profile.get("is_admin"):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "BDE member required")
     return user_id
 
@@ -67,9 +67,7 @@ async def require_tutorat_editor(
     """
     profile = await _fetch_profile(user_id)
     if not profile or not (
-        profile.get("is_bde_member")
-        or profile.get("is_admin")
-        or profile.get("is_tutor")
+        profile.get("is_admin") or profile.get("is_tutor")
     ):
         raise HTTPException(
             status.HTTP_403_FORBIDDEN, "Tutorat editor required"

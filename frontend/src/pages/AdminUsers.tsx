@@ -118,7 +118,6 @@ export default function AdminUsers() {
           u.id === user.id
             ? {
                 ...u,
-                is_bde_member: updated.is_bde_member,
                 is_tutor: updated.is_tutor,
                 is_com: updated.is_com,
                 is_admin: updated.is_admin,

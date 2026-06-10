@@ -6,7 +6,6 @@ export type AdminUser = {
   email: string | null
   full_name: string | null
   promotion: Promotion | null
-  is_bde_member: boolean
   is_admin: boolean
   is_tutor: boolean
   is_com: boolean
@@ -14,7 +13,6 @@ export type AdminUser = {
 
 /** Flags modifiables via l'UI admin (is_admin reste géré en SQL). */
 export type EditableRoles = {
-  is_bde_member?: boolean
   is_tutor?: boolean
   is_com?: boolean
 }
