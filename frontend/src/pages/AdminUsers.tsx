@@ -341,13 +341,13 @@ export default function AdminUsers() {
                 {u.is_admin ? null : (
                   <div className="flex items-center gap-2 shrink-0">
                     <RolePill
-                      label="Tuteur"
+                      label="Tutorat"
                       active={u.is_tutor}
                       disabled={savingId === u.id}
                       onClick={() => toggle(u, 'is_tutor')}
                     />
                     <RolePill
-                      label="Com"
+                      label="Communication"
                       active={u.is_com}
                       disabled={savingId === u.id}
                       onClick={() => toggle(u, 'is_com')}
