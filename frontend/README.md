@@ -18,7 +18,7 @@ C'est le cœur de l'application : elle parle **directement à Supabase** (Auth, 
 
 ### 1. Pré-requis
 
-Avoir suivi le guide `docs/GuideSetupOutils.pdf` : Node 20 LTS (via nvm), un éditeur (VS Code recommandé).
+Avoir suivi le [Guide des admins](../docs/GUIDE-ADMIN.md) : Node 20 LTS (via nvm), un éditeur (VS Code recommandé).
 
 ### 2. Installation des dépendances
 

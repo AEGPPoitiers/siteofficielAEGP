@@ -40,7 +40,7 @@ Le front parle **directement à Supabase** pour la majorité des données (Auth,
 
 ## Démarrage
 
-1. Installer les outils : voir `docs/GuideSetupOutils.pdf` (Node 20 LTS, Python 3.14, VS Code recommandé).
+1. Installer les outils : voir le **[Guide des admins](docs/GUIDE-ADMIN.md)** (Node 20 LTS, Python 3.14, VS Code, comptes, workflow git…).
 2. Suivre le README correspondant à ce sur quoi tu travailles :
    - **Frontend** → [`frontend/README.md`](frontend/README.md)
    - **Backend** → [`backend/README.md`](backend/README.md)
