@@ -76,10 +76,11 @@ Tout ce qui suit est **en prod et fonctionnel** :
 - **Agenda** : calendrier (vues mois + semaine), événements avec image, couleur, lieu, heure de fin optionnelle, lien externe. CRUD réservé BDE/admin.
 - **Boîte à idées** : soumission par les étudiants (nom de l'auteur affiché), modération côté BDE.
 - **Tutorat** : taxonomie en arbre (promo → option → matière), documents sur **Backblaze B2** (URLs signées via backend), aperçu/téléchargement, vue admin pour gérer l'arbre et les fichiers. Rôle `is_tutor`.
-- **Actualités** : articles avec image + jusqu'à 5 liens (colonne `links` jsonb, chacun avec son texte de bouton), filtre **année → mois** (100 % front). Rôle `is_com`.
+- **Actualités** : articles avec image + jusqu'à 5 liens (colonne `links` jsonb, chacun avec son texte de bouton), filtre **année → mois** (100 % front). Chaque actu est adressable via une ancre `#news-<id>` (bouton « copier le lien » dans l'UI) — pratique pour la coller dans le champ « Lien externe » d'un événement de l'agenda. Rôle `is_com`.
 - **Sondages** : choix unique, création/clôture/suppression admin, vote modifiable tant qu'ouvert, **résultats visibles seulement à la clôture** (confidentialité garantie côté base, voir §6). Encart « Sondage en cours » sur l'accueil.
 - **Accueil** : sondage en cours + actualités + menu cafétéria (image statique, accordéon repliable sur mobile).
-- **Administration** (`/admin`) : gestion des rôles, **édition des comptes** (nom/promo/email avec révocation de session), **import CSV** des étudiants (invitations Brevo), suppression par promotion.
+- **Administration** (`/admin`) : gestion des rôles, **édition des comptes** (nom/promo/email avec révocation de session), **renvoi d'un mail de réinitialisation** en un clic (réutilise `supabase.auth.resetPasswordForEmail`, envoyé directement depuis le site sans passer par le dashboard Supabase), **import CSV** des étudiants (invitations Brevo), suppression par promotion.
+- **Footer** : adresse `contact.aegp@gmail.com` affichée en texte simple (pas de lien `mailto:` — dépend d'un client mail par défaut et ne permet pas de choisir le compte expéditeur).
 
 ---
 

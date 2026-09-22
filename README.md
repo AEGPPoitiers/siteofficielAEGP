@@ -12,7 +12,7 @@ Site officiel de l'**AEGP** (Association des Étudiant·e·s en Génie Physiolog
 - **Tutorat** — arborescence de cours/documents par promo et matière, aperçu et téléchargement (réservé aux comptes étudiants).
 - **Boîte à idées** — soumission d'idées par les étudiants, modération côté BDE.
 - **Sondages** — sondages à choix unique, résultats dévoilés à la clôture.
-- **Administration** — gestion des rôles, édition des comptes, import en masse des étudiants (CSV → invitations email).
+- **Administration** — gestion des rôles, édition des comptes, renvoi d'un mail de réinitialisation de mot de passe, import en masse des étudiants (CSV → invitations email).
 
 ## Stack
 
