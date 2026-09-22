@@ -8,6 +8,8 @@ import {
   UserPlus,
   Upload,
   GraduationCap,
+  KeyRound,
+  Check,
 } from 'lucide-react'
 import {
   listUsers,
@@ -21,6 +23,7 @@ import {
   type EditableUserInfo,
 } from '../lib/adminUsers'
 import { PROMOTIONS, EMAIL_RE, type Promotion } from '../lib/studentsImport'
+import { useAuth } from '../contexts/AuthContext'
 import { useConfirm } from '../contexts/ConfirmContext'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
@@ -29,6 +32,7 @@ type PromoFilter = 'all' | Promotion | 'none'
 
 export default function AdminUsers() {
   const confirm = useConfirm()
+  const { requestPasswordReset } = useAuth()
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -40,6 +44,8 @@ export default function AdminUsers() {
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [resettingId, setResettingId] = useState<string | null>(null)
+  const [resetSentId, setResetSentId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -163,6 +169,29 @@ export default function AdminUsers() {
       )
     } finally {
       setDeletingId(null)
+    }
+  }
+
+  async function handleSendReset(user: AdminUser) {
+    if (!user.email) return
+    setActionError(null)
+    setResettingId(user.id)
+    try {
+      const { error } = await requestPasswordReset(user.email)
+      if (error) throw error
+      setResetSentId(user.id)
+      setTimeout(
+        () => setResetSentId((id) => (id === user.id ? null : id)),
+        3000,
+      )
+    } catch (e) {
+      setActionError(
+        e instanceof Error
+          ? e.message
+          : "Échec de l'envoi du mail de réinitialisation.",
+      )
+    } finally {
+      setResettingId(null)
     }
   }
 
@@ -352,6 +381,20 @@ export default function AdminUsers() {
                       disabled={savingId === u.id}
                       onClick={() => toggle(u, 'is_com')}
                     />
+                    <button
+                      type="button"
+                      onClick={() => handleSendReset(u)}
+                      disabled={resettingId === u.id || !u.email}
+                      aria-label={`Envoyer un mail de réinitialisation à ${u.full_name || u.email || ''}`}
+                      title="Envoyer un mail de réinitialisation du mot de passe"
+                      className="p-1.5 text-gray-600 hover:bg-gray-100 rounded-md disabled:opacity-50"
+                    >
+                      {resetSentId === u.id ? (
+                        <Check size={16} aria-hidden className="text-green-600" />
+                      ) : (
+                        <KeyRound size={16} aria-hidden />
+                      )}
+                    </button>
                     <button
                       type="button"
                       onClick={() =>
