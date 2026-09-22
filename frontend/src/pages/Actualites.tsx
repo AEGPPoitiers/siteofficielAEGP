@@ -333,7 +333,7 @@ export default function Actualites() {
                   <img
                     src={item.image_url}
                     alt=""
-                    className="w-full max-h-72 object-cover rounded-md border border-gray-200 mb-4"
+                    className="w-full max-h-[80vh] object-contain bg-gray-50 rounded-md border border-gray-200 mb-4"
                   />
                 )}
                 <div className="flex items-start justify-between gap-4 mb-1">
@@ -520,7 +520,7 @@ function NewsForm({
           Image (optionnel)
         </label>
         <p className="text-xs text-gray-500 mb-2">
-          Format image, 5 Mo max. Ratio paysage recommandé.
+          Format image, 5 Mo max. Paysage ou portrait (affiche A4).
         </p>
         <input
           ref={fileInputRef}
