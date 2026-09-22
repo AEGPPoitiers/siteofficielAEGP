@@ -1,12 +1,16 @@
 import { supabase } from './supabase'
 
+export type NewsLink = {
+  url: string
+  label: string | null
+}
+
 export type NewsItem = {
   id: string
   title: string
   content: string
   image_url: string | null
-  link_url: string | null
-  link_label: string | null
+  links: NewsLink[]
   created_by: string | null
   created_at: string
 }
@@ -14,14 +18,14 @@ export type NewsItem = {
 export const NEWS_TITLE_MAX = 200
 export const NEWS_CONTENT_MAX = 5000
 export const NEWS_LINK_LABEL_MAX = 80
+export const NEWS_LINKS_MAX = 5
 
 /** Valeurs persistées d'une actualité (hors champs gérés par la BDD). */
 export type NewsValues = {
   title: string
   content: string
   image_url: string | null
-  link_url: string | null
-  link_label: string | null
+  links: NewsLink[]
 }
 
 /**
@@ -67,8 +71,7 @@ export async function createNews(
       title: values.title.trim(),
       content: values.content.trim(),
       image_url: values.image_url,
-      link_url: values.link_url,
-      link_label: values.link_label,
+      links: values.links,
       created_by: userId,
     })
     .select()
@@ -88,8 +91,7 @@ export async function updateNews(
       title: values.title.trim(),
       content: values.content.trim(),
       image_url: values.image_url,
-      link_url: values.link_url,
-      link_label: values.link_label,
+      links: values.links,
     })
     .eq('id', id)
     .select()

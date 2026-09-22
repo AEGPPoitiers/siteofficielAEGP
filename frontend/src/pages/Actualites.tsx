@@ -6,7 +6,7 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from 'react'
-import { ExternalLink, Pencil, Trash2 } from 'lucide-react'
+import { ExternalLink, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useIsBdeMember } from '../lib/useIsBdeMember'
 import { useConfirm } from '../contexts/ConfirmContext'
@@ -20,7 +20,9 @@ import {
   NEWS_TITLE_MAX,
   NEWS_CONTENT_MAX,
   NEWS_LINK_LABEL_MAX,
+  NEWS_LINKS_MAX,
   type NewsItem,
+  type NewsLink,
 } from '../lib/news'
 import { uploadNewsImage, removeNewsImage } from '../lib/newsImage'
 import { Button } from '../components/ui/Button'
@@ -45,23 +47,22 @@ const MONTHS = [
   'Décembre',
 ]
 
+type LinkRow = { url: string; label: string }
+
 type NewsFormPayload = {
   title: string
   content: string
-  link: string
-  linkLabel: string
+  links: LinkRow[]
   imageFile: File | null
   removeImage: boolean
 }
 
-/** Résout l'URL et son libellé : un label sans lien est ignoré. */
-function resolveLink(payload: NewsFormPayload): {
-  link_url: string | null
-  link_label: string | null
-} {
-  const link_url = normalizeLink(payload.link)
-  if (!link_url) return { link_url: null, link_label: null }
-  return { link_url, link_label: payload.linkLabel.trim() || null }
+/** Résout les liens saisis : lignes vides ignorées, URL normalisées. */
+function resolveLinks(payload: NewsFormPayload): { links: NewsLink[] } {
+  const links = payload.links
+    .map((row) => ({ url: normalizeLink(row.url), label: row.label.trim() || null }))
+    .filter((row): row is NewsLink => row.url !== null)
+  return { links }
 }
 
 export default function Actualites() {
@@ -150,7 +151,7 @@ export default function Actualites() {
         title: payload.title,
         content: payload.content,
         image_url,
-        ...resolveLink(payload),
+        ...resolveLinks(payload),
       },
       user.id,
     )
@@ -179,7 +180,7 @@ export default function Actualites() {
       title: payload.title,
       content: payload.content,
       image_url,
-      ...resolveLink(payload),
+      ...resolveLinks(payload),
     })
 
     if (oldImageToDelete) {
@@ -315,8 +316,10 @@ export default function Actualites() {
                 initialValues={{
                   title: item.title,
                   content: item.content,
-                  link: item.link_url ?? '',
-                  linkLabel: item.link_label ?? '',
+                  links: item.links.map((l) => ({
+                    url: l.url,
+                    label: l.label ?? '',
+                  })),
                 }}
                 currentImageUrl={item.image_url}
                 submitLabel="Enregistrer"
@@ -367,16 +370,21 @@ export default function Actualites() {
                 <p className="text-gray-700 whitespace-pre-wrap">
                   {item.content}
                 </p>
-                {item.link_url && (
-                  <a
-                    href={item.link_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 mt-4 text-sm font-medium text-blue-700 hover:text-blue-900 hover:underline"
-                  >
-                    {item.link_label ?? 'En savoir plus'}
-                    <ExternalLink size={14} aria-hidden />
-                  </a>
+                {item.links.length > 0 && (
+                  <div className="flex flex-wrap gap-x-4 gap-y-2 mt-4">
+                    {item.links.map((l, i) => (
+                      <a
+                        key={i}
+                        href={l.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 hover:text-blue-900 hover:underline"
+                      >
+                        {l.label ?? 'En savoir plus'}
+                        <ExternalLink size={14} aria-hidden />
+                      </a>
+                    ))}
+                  </div>
                 )}
               </article>
             ),
@@ -391,8 +399,7 @@ type NewsFormProps = {
   initialValues?: {
     title: string
     content: string
-    link: string
-    linkLabel: string
+    links: LinkRow[]
   }
   currentImageUrl?: string | null
   submitLabel: string
@@ -411,8 +418,7 @@ function NewsForm({
 }: NewsFormProps) {
   const [title, setTitle] = useState(initialValues?.title ?? '')
   const [content, setContent] = useState(initialValues?.content ?? '')
-  const [link, setLink] = useState(initialValues?.link ?? '')
-  const [linkLabel, setLinkLabel] = useState(initialValues?.linkLabel ?? '')
+  const [links, setLinks] = useState<LinkRow[]>(initialValues?.links ?? [])
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [removeImage, setRemoveImage] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -455,6 +461,20 @@ function NewsForm({
     setRemoveImage(true)
   }
 
+  function addLink() {
+    setLinks((prev) => [...prev, { url: '', label: '' }])
+  }
+
+  function updateLink(index: number, patch: Partial<LinkRow>) {
+    setLinks((prev) =>
+      prev.map((row, i) => (i === index ? { ...row, ...patch } : row)),
+    )
+  }
+
+  function removeLink(index: number) {
+    setLinks((prev) => prev.filter((_, i) => i !== index))
+  }
+
   function validate(): string | null {
     const t = title.trim()
     const c = content.trim()
@@ -477,7 +497,7 @@ function NewsForm({
     }
     setSubmitting(true)
     try {
-      await onSubmit({ title, content, link, linkLabel, imageFile, removeImage })
+      await onSubmit({ title, content, links, imageFile, removeImage })
     } catch (e) {
       setError(`Impossible d'enregistrer l'actualité : ${(e as Error).message}`)
     } finally {
@@ -569,27 +589,59 @@ function NewsForm({
         )}
       </div>
 
-      <Input
-        id="news-link"
-        label="Lien (optionnel)"
-        type="url"
-        value={link}
-        onChange={(e) => setLink(e.target.value)}
-        disabled={submitting}
-        placeholder="https://…"
-      />
-      {link.trim() !== '' && (
-        <Input
-          id="news-link-label"
-          label="Texte du lien (optionnel)"
-          type="text"
-          value={linkLabel}
-          onChange={(e) => setLinkLabel(e.target.value)}
-          maxLength={NEWS_LINK_LABEL_MAX}
-          disabled={submitting}
-          placeholder="En savoir plus"
-        />
-      )}
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Liens (optionnel)
+        </label>
+        <div className="space-y-3">
+          {links.map((row, i) => (
+            <div key={i} className="flex items-start gap-2">
+              <div className="flex-1 space-y-2">
+                <Input
+                  id={`news-link-${i}`}
+                  label="URL"
+                  type="url"
+                  value={row.url}
+                  onChange={(e) => updateLink(i, { url: e.target.value })}
+                  disabled={submitting}
+                  placeholder="https://…"
+                />
+                <Input
+                  id={`news-link-label-${i}`}
+                  label="Texte du bouton (optionnel)"
+                  type="text"
+                  value={row.label}
+                  onChange={(e) => updateLink(i, { label: e.target.value })}
+                  maxLength={NEWS_LINK_LABEL_MAX}
+                  disabled={submitting}
+                  placeholder="En savoir plus"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => removeLink(i)}
+                aria-label="Supprimer ce lien"
+                disabled={submitting}
+                className="p-2 mt-0.5 text-gray-500 hover:bg-gray-100 rounded-md shrink-0"
+              >
+                <X size={16} aria-hidden />
+              </button>
+            </div>
+          ))}
+        </div>
+        {links.length < NEWS_LINKS_MAX && (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={addLink}
+            disabled={submitting}
+            className="mt-3"
+          >
+            <Plus size={16} aria-hidden className="mr-1.5" />
+            Ajouter un lien
+          </Button>
+        )}
+      </div>
 
       <div className="flex gap-2">
         <Button type="submit" variant="primary" loading={submitting}>
