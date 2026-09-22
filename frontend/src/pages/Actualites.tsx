@@ -6,7 +6,8 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from 'react'
-import { ExternalLink, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { Check, ExternalLink, Link as LinkIcon, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { useLocation } from 'react-router'
 import { useAuth } from '../contexts/AuthContext'
 import { useIsBdeMember } from '../lib/useIsBdeMember'
 import { useConfirm } from '../contexts/ConfirmContext'
@@ -77,6 +78,8 @@ export default function Actualites() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [filterMonth, setFilterMonth] = useState<string>('all')
   const [filterYear, setFilterYear] = useState<string>('all')
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+  const location = useLocation()
 
   useEffect(() => {
     let cancelled = false
@@ -95,6 +98,41 @@ export default function Actualites() {
       cancelled = true
     }
   }, [])
+
+  // Ancre vers une actualité précise (ex : lien partagé depuis un événement).
+  // Les images qui finissent de charger après coup décalent la page : on
+  // recale le scroll à chaque chargement d'image pendant une courte fenêtre.
+  const hashScrollActiveRef = useRef(false)
+
+  useEffect(() => {
+    if (loading || !location.hash) return
+    hashScrollActiveRef.current = true
+    document
+      .getElementById(location.hash.slice(1))
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    const timeout = setTimeout(() => {
+      hashScrollActiveRef.current = false
+    }, 2000)
+    return () => clearTimeout(timeout)
+  }, [loading, location.hash])
+
+  function handleImageLoad() {
+    if (!hashScrollActiveRef.current || !location.hash) return
+    document
+      .getElementById(location.hash.slice(1))
+      ?.scrollIntoView({ behavior: 'auto', block: 'start' })
+  }
+
+  async function handleCopyLink(id: string) {
+    const url = `${window.location.origin}/actualites#news-${id}`
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopiedId(id)
+      setTimeout(() => setCopiedId((prev) => (prev === id ? null : prev)), 1500)
+    } catch (e) {
+      console.warn('[news] copie du lien échouée :', e)
+    }
+  }
 
   // Années présentes dans les actualités, pour alimenter le filtre (récentes d'abord).
   const availableYears = useMemo(() => {
@@ -330,12 +368,14 @@ export default function Actualites() {
             ) : (
               <article
                 key={item.id}
-                className="bg-white rounded-lg shadow-sm border border-gray-200 p-5"
+                id={`news-${item.id}`}
+                className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 scroll-mt-4"
               >
                 {item.image_url && (
                   <img
                     src={item.image_url}
                     alt=""
+                    onLoad={handleImageLoad}
                     className="w-full max-h-[80vh] object-contain bg-gray-50 rounded-md border border-gray-200 mb-4"
                   />
                 )}
@@ -343,26 +383,41 @@ export default function Actualites() {
                   <h2 className="text-xl font-semibold text-gray-900">
                     {item.title}
                   </h2>
-                  {canEditNews && (
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => setEditingId(item.id)}
-                        aria-label="Modifier l'actualité"
-                        className="p-1.5 text-gray-600 hover:bg-gray-100 rounded-md"
-                      >
-                        <Pencil size={16} aria-hidden />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(item.id)}
-                        aria-label="Supprimer l'actualité"
-                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-md"
-                      >
-                        <Trash2 size={16} aria-hidden />
-                      </button>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleCopyLink(item.id)}
+                      aria-label="Copier le lien direct vers cette actualité"
+                      title="Copier le lien direct"
+                      className="p-1.5 text-gray-600 hover:bg-gray-100 rounded-md"
+                    >
+                      {copiedId === item.id ? (
+                        <Check size={16} aria-hidden className="text-green-600" />
+                      ) : (
+                        <LinkIcon size={16} aria-hidden />
+                      )}
+                    </button>
+                    {canEditNews && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setEditingId(item.id)}
+                          aria-label="Modifier l'actualité"
+                          className="p-1.5 text-gray-600 hover:bg-gray-100 rounded-md"
+                        >
+                          <Pencil size={16} aria-hidden />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(item.id)}
+                          aria-label="Supprimer l'actualité"
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-md"
+                        >
+                          <Trash2 size={16} aria-hidden />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <p className="text-xs text-gray-500 mb-3">
                   {formatNewsDate(item.created_at)}
