@@ -7,7 +7,7 @@ Site officiel de l'**AEGP** (Association des Étudiant·e·s en Génie Physiolog
 ## Fonctionnalités
 
 - **Accueil** — sondage en cours (vote en ligne), dernières actualités, menu de la cafétéria.
-- **Actualités** — articles (image, lien, texte de lien), filtre par année puis par mois.
+- **Actualités** — articles (image, plusieurs liens), filtre par année puis par mois.
 - **Agenda** — calendrier des événements (vues mois / semaine), détail, image et couleur par événement.
 - **Tutorat** — arborescence de cours/documents par promo et matière, aperçu et téléchargement (réservé aux comptes étudiants).
 - **Boîte à idées** — soumission d'idées par les étudiants, modération côté BDE.
