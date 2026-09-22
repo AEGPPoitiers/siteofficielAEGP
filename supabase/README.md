@@ -46,6 +46,7 @@ NNNN_description_courte.sql
 | `0014_admin_revoke_user_sessions.sql` | RPC `admin_revoke_user_sessions` (révoque les sessions après changement d'email) |
 | `0015_polls.sql` | Tables `polls` / `poll_options` / `poll_votes` + RLS + RPC `get_poll_results` (résultats masqués avant clôture) |
 | `0016_drop_is_bde_member.sql` | **Migration destructive** : bascule 18 policies de `is_bde_member` vers `is_admin`, puis `drop column is_bde_member` |
+| `0017_news_multiple_links.sql` | **Migration destructive** : remplace `news.link_url`/`link_label` par `news.links` (jsonb, jusqu'à 5 liens) |
 
 ## Rôles (flags sur `profiles`)
 
