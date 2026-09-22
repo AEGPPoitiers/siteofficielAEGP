@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { useState } from 'react'
-import { Menu, X, LogOut } from 'lucide-react'
+import { Menu, X, LogOut, Mail } from 'lucide-react'
 import logo from '../assets/logo_aegp.svg'
 import { useAuth } from '../contexts/AuthContext'
 import { useIsBdeMember } from '../lib/useIsBdeMember'
@@ -154,8 +154,12 @@ export default function Layout() {
       </main>
 
       <footer className="bg-white border-t border-gray-200">
-        <div className="max-w-6xl mx-auto px-4 py-4 text-center text-sm text-gray-500">
-          © {new Date().getFullYear()} AEGP
+        <div className="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-sm text-gray-500">
+          <span>© {new Date().getFullYear()} AEGP</span>
+          <span className="inline-flex items-center gap-1.5">
+            <Mail size={14} aria-hidden />
+            contact.aegp@gmail.com
+          </span>
         </div>
       </footer>
     </div>
