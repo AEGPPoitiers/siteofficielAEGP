@@ -3,14 +3,17 @@
 // ce qui sera importé (valides), rejeté (invalides), en doublon, ou exclu (promo
 // hors L3/M1/M2 : diplômés déjà sortis, L1/L2…).
 //
-// Format réel (export du formulaire de la fac), colonnes repérées par leur intitulé :
-//   Horodateur, Adresse e-mail, Promotion d'appartenance, Nom, Prénom, Adresse email
-// - email retenu  = la DERNIÈRE colonne contenant « mail » (ignore l'adresse du
-//   formulaire en 2e colonne) ;
-// - promotion     = colonne contenant « promotion », exprimée en ANNÉE DE DIPLÔME
-//   (ex. « GPhy-2026 ») dont on extrait l'année à 4 chiffres ;
-// - nom / prénom  = colonnes « nom » / « prenom ».
-// Séparateur `,` ou `;` déduit de l'en-tête.
+// Formats reconnus automatiquement par l'en-tête (séparateur `,` ou `;`) :
+// - Nouveau format : Horodateur, Nom, Prénom, Adresse mail, Promo d'appartenance
+// - Ancien format  : Horodateur, Adresse e-mail, Promotion d'appartenance, Nom, Prénom, Adresse email
+//
+// Détection automatique :
+// - email     = dernière colonne contenant « mail » ou « courriel » (ignore l'adresse auto du formulaire si doublon) ;
+// - promo     = colonne contenant « promo » (ex. « Promo d'appartenance » ou « Promotion d'appartenance ») ;
+//               reconnue directement par son niveau (ex. « GPHY2027 (L3) ») ou calculée par l'année de diplôme ;
+// - nom       = colonne « nom » ou commençant par « nom » ;
+// - prénom    = colonne « prenom » ou commençant par « prenom » ;
+// - nom compl = si une colonne unique regroupe nom et prénom (« nom complet », « nom et prenom »).
 
 export type Promotion = 'L3' | 'M1' | 'M2'
 export const PROMOTIONS: readonly Promotion[] = ['L3', 'M1', 'M2']
@@ -62,12 +65,142 @@ export function defaultRentreeYear(now: Date = new Date()): number {
   return now.getMonth() + 1 >= 6 ? y : y - 1
 }
 
-function stripAccents(s: string): string {
-  return s.normalize('NFD').replace(/[̀-ͯ]/g, '')
+export function stripAccents(s: string): string {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
 
-function splitLine(line: string, sep: string): string[] {
-  return line.split(sep).map((c) => c.trim().replace(/^"|"$/g, ''))
+export function splitLine(line: string, sep: string): string[] {
+  if (!line.includes('"')) {
+    return line.split(sep).map((c) => c.trim())
+  }
+  const result: string[] = []
+  let cur = ''
+  let inQuotes = false
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i]
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        cur += '"'
+        i++
+      } else {
+        inQuotes = !inQuotes
+      }
+    } else if (char === sep && !inQuotes) {
+      result.push(cur.trim().replace(/^"|"$/g, ''))
+      cur = ''
+    } else {
+      cur += char
+    }
+  }
+  result.push(cur.trim().replace(/^"|"$/g, ''))
+  return result
+}
+
+export type PromoExtractResult =
+  | { status: 'ok'; promotion: Promotion }
+  | { status: 'excluded'; reason: string }
+  | { status: 'invalid'; reason: string }
+
+/**
+ * Déduit la promotion à partir du contenu d'une cellule :
+ * 1. Priorité au niveau explicite : « GPHY2027 (L3) », « (M1) », « L3 », etc.
+ * 2. Repli sur l'année de diplôme à 4 chiffres (ex. « GPhy-2026 ») + rentrée.
+ */
+export function extractPromotion(
+  raw: string,
+  rentreeYear: number,
+): PromoExtractResult {
+  const cell = (raw ?? '').trim()
+  if (!cell) {
+    return { status: 'invalid', reason: 'Promotion manquante' }
+  }
+
+  // 1. Niveau explicite dans la cellule (ex: "GPHY2027 (L3)", "(M1)", "L3")
+  const levelMatch = cell.match(/\b(L3|M1|M2)\b/i)
+  if (levelMatch) {
+    return {
+      status: 'ok',
+      promotion: levelMatch[1].toUpperCase() as Promotion,
+    }
+  }
+
+  // 2. Année de diplôme à 4 chiffres (ex: "GPhy-2026")
+  const yearMatch = cell.match(/(20\d{2})/)
+  if (yearMatch) {
+    const gradYear = Number(yearMatch[1])
+    const promo = gradYearToPromotion(gradYear, rentreeYear)
+    if (promo) {
+      return { status: 'ok', promotion: promo }
+    }
+    return {
+      status: 'excluded',
+      reason: `Promo ${gradYear} hors L3/M1/M2 (diplômé ou hors périmètre)`,
+    }
+  }
+
+  return {
+    status: 'excluded',
+    reason: `Promotion illisible ou hors L3/M1/M2 : « ${cell} »`,
+  }
+}
+
+export type DetectedColumns = {
+  idxEmail: number
+  idxPromotion: number
+  idxNom: number
+  idxPrenom: number
+  idxFullName: number
+  sep: string
+}
+
+/**
+ * Détecte automatiquement les colonnes d'après la ligne d'en-tête.
+ */
+export function detectColumns(headerLine: string): DetectedColumns {
+  const sep = headerLine.includes(';') ? ';' : ','
+  const header = splitLine(headerLine, sep).map((h) =>
+    stripAccents(h.toLowerCase()).trim(),
+  )
+
+  // Email : dernière colonne contenant 'mail' ou 'courriel'
+  let idxEmail = -1
+  header.forEach((h, i) => {
+    if (h.includes('mail') || h.includes('courriel')) {
+      idxEmail = i
+    }
+  })
+  if (idxEmail === -1) {
+    idxEmail = header.length - 1
+  }
+
+  // Promotion : colonne contenant 'promo' (ex. 'promo d\'appartenance', 'promotion d\'appartenance')
+  // ou 'filiere'
+  const idxPromotion = header.findIndex(
+    (h) => h.includes('promo') || h.includes('filiere'),
+  )
+
+  // Prénom
+  const idxPrenom = header.findIndex(
+    (h) => h === 'prenom' || h.startsWith('prenom'),
+  )
+
+  // Nom : colonne 'nom' ou commençant par 'nom' (hors 'nom complet', 'nom et prenom')
+  const idxNom = header.findIndex(
+    (h) =>
+      (h === 'nom' || h.startsWith('nom')) &&
+      !h.includes('complet') &&
+      !h.includes('prenom'),
+  )
+
+  // Nom complet regroupé (si une seule colonne regroupe nom et prénom)
+  const idxFullName = header.findIndex(
+    (h) =>
+      h.includes('nom complet') ||
+      h.includes('nom et prenom') ||
+      h.includes('nom prenom'),
+  )
+
+  return { idxEmail, idxPromotion, idxNom, idxPrenom, idxFullName, sep }
 }
 
 export function parseStudentsCsv(
@@ -88,24 +221,8 @@ export function parseStudentsCsv(
 
   if (lines.length === 0) return empty
 
-  // Séparateur déduit de l'en-tête (`;` fréquent sur les exports Excel FR).
-  const headerLine = lines[0]
-  const sep = headerLine.includes(';') ? ';' : ','
-  const header = splitLine(headerLine, sep).map((h) =>
-    stripAccents(h.toLowerCase()),
-  )
-
-  // email = dernière colonne « …mail… » (ignore l'adresse du formulaire) ;
-  // repli sur la dernière colonne si aucun intitulé ne contient « mail ».
-  let idxEmail = -1
-  header.forEach((h, i) => {
-    if (h.includes('mail')) idxEmail = i
-  })
-  if (idxEmail === -1) idxEmail = header.length - 1
-
-  const idxPromotion = header.findIndex((h) => h.includes('promotion'))
-  const idxNom = header.findIndex((h) => h === 'nom')
-  const idxPrenom = header.findIndex((h) => h === 'prenom')
+  const { idxEmail, idxPromotion, idxNom, idxPrenom, idxFullName, sep } =
+    detectColumns(lines[0])
 
   for (let i = 1; i < lines.length; i++) {
     const raw = lines[i]
@@ -117,25 +234,15 @@ export function parseStudentsCsv(
       continue
     }
 
-    // Promotion = année de diplôme → niveau, selon l'année de rentrée.
     const promoCell = idxPromotion >= 0 ? (cols[idxPromotion] ?? '') : ''
-    const match = promoCell.match(/(20\d{2})/)
-    if (!match) {
-      excluded.push({
-        line: i + 1,
-        raw,
-        reason: `Promotion illisible : « ${promoCell} »`,
-      })
+    const promoRes = extractPromotion(promoCell, rentreeYear)
+
+    if (promoRes.status === 'invalid') {
+      invalid.push({ line: i + 1, raw, reason: promoRes.reason })
       continue
     }
-    const gradYear = Number(match[1])
-    const promotion = gradYearToPromotion(gradYear, rentreeYear)
-    if (!promotion) {
-      excluded.push({
-        line: i + 1,
-        raw,
-        reason: `Promo ${gradYear} hors L3/M1/M2 (diplômé ou hors périmètre)`,
-      })
+    if (promoRes.status === 'excluded') {
+      excluded.push({ line: i + 1, raw, reason: promoRes.reason })
       continue
     }
 
@@ -147,9 +254,12 @@ export function parseStudentsCsv(
 
     const nom = idxNom >= 0 ? (cols[idxNom] ?? '') : ''
     const prenom = idxPrenom >= 0 ? (cols[idxPrenom] ?? '') : ''
-    const full_name = `${prenom} ${nom}`.trim()
+    const full_name =
+      idxFullName >= 0 && cols[idxFullName]
+        ? cols[idxFullName].trim()
+        : `${prenom} ${nom}`.trim()
 
-    valid.push({ email, full_name, promotion })
+    valid.push({ email, full_name, promotion: promoRes.promotion })
   }
 
   return { valid, invalid, duplicates, excluded }
