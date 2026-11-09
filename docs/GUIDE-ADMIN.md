@@ -295,10 +295,11 @@ Les invitations partent via **Brevo** (SMTP). Vérifier en amont :
 
 ### b. Importer les étudiants (CSV)
 
-Page **`/admin/import`** → coller/uploader le CSV de la fac → un **aperçu** s'affiche avant tout envoi. Le parser reconnaît les colonnes par intitulé (email, Nom, Prénom, « Promotion d'appartenance »).
+Page **`/admin/import`** → coller/uploader le CSV de la fac → un **aperçu** s'affiche avant tout envoi. Le parser reconnaît automatiquement les colonnes par intitulé (Nom, Prénom, Adresse mail, « Promo d'appartenance »).
 
-La **promotion** (L3 / M1 / M2) est calculée à partir de l'année de diplôme et de l'**« Année de la rentrée »** saisie sur la page :
-- **M2 = rentrée + 1**, **M1 = rentrée + 2**, **L3 = rentrée + 3**.
+La **promotion** (L3 / M1 / M2) est reconnue automatiquement :
+- Soit directement si le niveau est précisé entre parenthèses (ex. `GPHY2027 (L3)`) ;
+- Soit calculée à partir de l'année de diplôme et de l'**« Année de la rentrée »** saisie sur la page : **M2 = rentrée + 1**, **M1 = rentrée + 2**, **L3 = rentrée + 3**.
 
 Les promos hors de cette fenêtre (déjà diplômés, L1/L2) sont **exclues** automatiquement. L'import est **ré-exécutable** sans créer de doublons (un étudiant déjà inscrit voit juste sa promotion mise à jour).
 

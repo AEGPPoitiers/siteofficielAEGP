@@ -101,12 +101,14 @@ export default function AdminImport() {
           Colle le CSV exporté du formulaire (ou choisis un fichier). Les
           colonnes <code className="text-sm bg-gray-100 px-1 rounded">Nom</code>,{' '}
           <code className="text-sm bg-gray-100 px-1 rounded">Prénom</code>,{' '}
+          <code className="text-sm bg-gray-100 px-1 rounded">Adresse mail</code>{' '}
+          et{' '}
           <code className="text-sm bg-gray-100 px-1 rounded">
-            Promotion d'appartenance
+            Promo d'appartenance
           </code>{' '}
-          (année de diplôme) et l'adresse mail (dernière colonne) sont reconnues
-          automatiquement. Chaque adresse reçoit une invitation à définir son mot
-          de passe ; un compte déjà inscrit voit sa promotion mise à jour.
+          sont reconnues automatiquement quel que soit l'ordre. Chaque adresse
+          reçoit une invitation à définir son mot de passe ; un compte déjà inscrit
+          voit sa promotion mise à jour.
         </p>
       </div>
 
@@ -125,8 +127,7 @@ export default function AdminImport() {
           className="w-24 border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-black"
         />
         <span className="text-sm text-gray-500">
-          M2 = diplôme {rentreeYear + 1} · M1 = {rentreeYear + 2} · L3 ={' '}
-          {rentreeYear + 3}
+          Niveau reconnu directement (ex. GPHY2027 (L3)) ou déduit : M2 = diplôme {rentreeYear + 1} · M1 = {rentreeYear + 2} · L3 = {rentreeYear + 3}
         </span>
       </div>
 
@@ -155,7 +156,7 @@ export default function AdminImport() {
           onChange={(e) => handleText(e.target.value)}
           rows={8}
           placeholder={
-            "Horodateur,Adresse e-mail,Promotion d'appartenance,Nom,Prénom,Adresse email\n…,…,GPhy-2029,Dupont,Jean,jean.dupont@etu.fr"
+            "Horodateur,Nom,Prénom,Adresse mail,Promo d'appartenance\n2026/09/01 12:00:00,Dupont,Jean,jean.dupont@etu.univ-poitiers.fr,GPHY2027 (L3)"
           }
           className="w-full font-mono text-sm border border-gray-300 rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-black"
         />
